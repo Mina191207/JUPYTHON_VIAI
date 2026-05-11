@@ -56,8 +56,26 @@ fps = 30
 
 
 def get_ffmpeg_binary():
-    # 优先复用配置里显式指定的 ffmpeg，可避免不同环境下 PATH 不一致。
-    return os.environ.get("IMAGEIO_FFMPEG_EXE") or "ffmpeg"
+    # 优先复用用户在 config.toml / 环境变量里显式指定的 ffmpeg，可避免
+    # Windows 便携包、Docker、自定义安装目录等场景下 PATH 不一致。
+    configured_ffmpeg = os.environ.get("IMAGEIO_FFMPEG_EXE")
+    if configured_ffmpeg:
+        return configured_ffmpeg
+
+    system_ffmpeg = shutil.which("ffmpeg")
+    if system_ffmpeg:
+        return system_ffmpeg
+
+    try:
+        import imageio_ffmpeg
+
+        bundled_ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+        if bundled_ffmpeg:
+            return bundled_ffmpeg
+    except Exception as exc:
+        logger.warning(f"failed to resolve bundled ffmpeg binary: {str(exc)}")
+
+    return "ffmpeg"
 
 
 def _escape_ffmpeg_concat_path(file_path: str) -> str:

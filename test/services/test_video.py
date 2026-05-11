@@ -2,7 +2,9 @@
 import unittest
 import os
 import sys
+import types
 from pathlib import Path
+from unittest.mock import patch
 from moviepy import (
     VideoFileClip,
 )
@@ -46,6 +48,25 @@ class TestVideoService(unittest.TestCase):
         # clean generated test video file
         if os.path.exists(materials[0].url):
             os.remove(materials[0].url)
+
+    def test_get_ffmpeg_binary_uses_configured_env_path(self):
+        """配置中显式指定 ffmpeg 时，应优先使用该路径。"""
+        with patch.dict(os.environ, {"IMAGEIO_FFMPEG_EXE": "/tmp/custom-ffmpeg"}, clear=True):
+            self.assertEqual(vd.get_ffmpeg_binary(), "/tmp/custom-ffmpeg")
+
+    def test_get_ffmpeg_binary_falls_back_to_imageio_ffmpeg(self):
+        """
+        Windows 便携包里系统 PATH 可能没有 ffmpeg，但 moviepy 依赖的
+        imageio-ffmpeg 通常会提供可执行文件。这里验证该兜底路径可用。
+        """
+        fake_imageio_ffmpeg = types.SimpleNamespace(
+            get_ffmpeg_exe=lambda: "/tmp/bundled-ffmpeg"
+        )
+
+        with patch.dict(os.environ, {}, clear=True), patch.object(
+            vd.shutil, "which", return_value=None
+        ), patch.dict(sys.modules, {"imageio_ffmpeg": fake_imageio_ffmpeg}):
+            self.assertEqual(vd.get_ffmpeg_binary(), "/tmp/bundled-ffmpeg")
     
     def test_wrap_text(self):
         """test text wrapping function"""
