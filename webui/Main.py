@@ -509,6 +509,7 @@ right_panel = panel[2]
 
 params = VideoParams(video_subject="")
 uploaded_files = []
+uploaded_audio_file = None
 
 with left_panel:
     with st.container(border=True):
@@ -859,6 +860,22 @@ with middle_panel:
             index=2,
         )
 
+        custom_audio_file_types = ["mp3", "wav", "m4a", "aac", "flac", "ogg"]
+        uploaded_audio_file = st.file_uploader(
+            tr("Custom Audio File"),
+            type=custom_audio_file_types
+            + [file_type.upper() for file_type in custom_audio_file_types],
+            accept_multiple_files=False,
+            key="custom_audio_file_uploader",
+        )
+        if uploaded_audio_file:
+            st.audio(uploaded_audio_file, format="audio/mp3")
+            st.info(
+                tr(
+                    "Custom audio will be used directly. TTS synthesis will be skipped for this task."
+                )
+            )
+
         bgm_options = [
             (tr("No Background Music"), ""),
             (tr("Random Background Music"), "random"),
@@ -1047,6 +1064,17 @@ if start_button:
         st.error(tr("Please Enter the Pixabay API Key"))
         scroll_to_bottom()
         st.stop()
+
+    if uploaded_audio_file:
+        task_dir = utils.task_dir(task_id)
+        # 上传文件名来自浏览器，不能直接拼到磁盘路径里；这里只保留扩展名，
+        # 并使用固定文件名保存到当前任务目录，避免路径穿越或特殊字符问题。
+        _, audio_ext = os.path.splitext(os.path.basename(uploaded_audio_file.name))
+        audio_ext = audio_ext.lower() or ".mp3"
+        custom_audio_path = os.path.join(task_dir, f"custom-audio{audio_ext}")
+        with open(custom_audio_path, "wb") as f:
+            f.write(uploaded_audio_file.getbuffer())
+        params.custom_audio_file = custom_audio_path
 
     if uploaded_files:
         local_videos_dir = utils.storage_dir("local_videos", create=True)

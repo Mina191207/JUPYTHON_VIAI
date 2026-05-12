@@ -42,6 +42,8 @@
     "Speech Key": "API Key(:red[Required，[Get API Key](https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub/~/SpeechServices)])",
     "Speech Volume": "Speech Volume (1.0 represents 100%)",
     "Speech Rate": "Speech Rate (1.0 means 1x speed)",
+    "Custom Audio File": "Custom Audio File",
+    "Custom audio will be used directly. TTS synthesis will be skipped for this task.": "Custom audio will be used directly. TTS synthesis will be skipped for this task.",
     "Male": "Male",
     "Female": "Female",
     "Background Music": "Background Music",
