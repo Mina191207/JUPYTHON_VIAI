@@ -43,8 +43,8 @@
 ### Bước 1 — Clone repo
 
 ```bash
-git clone https://github.com/<your-org>/vietclip-ai.git
-cd vietclip-ai
+git clone https://github.com/Mina191207/JUPYTHON_VIAI.git
+cd JUPYTHON_VIAI
 git checkout dev
 ```
 
@@ -110,7 +110,7 @@ Nếu lệnh không nhận, cài theo hướng dẫn tại:
 ### Bước 5 — Chạy app
 
 ```bash
-streamlit run app/webui/main.py
+streamlit run webui/Main.py
 ```
 
 Mở trình duyệt tại: **http://localhost:8501**
@@ -132,22 +132,16 @@ Mở trình duyệt tại: **http://localhost:8501**
 ## 📁 Cấu trúc thư mục
 
 ```
-vietclip-ai/
-├── app/
-│   ├── controllers/       # API route handlers (FastAPI)
-│   ├── services/          # Business logic
-│   │   ├── llm.py         # Script generation (Gemini)
-│   │   ├── tts.py         # Text-to-Speech tiếng Việt
-│   │   ├── material.py    # Stock video fetching (Pexels)
-│   │   ├── subtitle.py    # Subtitle engine
-│   │   └── video.py       # FFmpeg render pipeline
-│   ├── webui/
-│   │   └── main.py        # Streamlit frontend
-│   └── config/
-│       └── config.py      # Cấu hình chung
-├── fonts/                 # Font tiếng Việt cho subtitle
-├── output/                # Video output (git-ignored)
-├── .env.example           # Mẫu cấu hình API keys
+JUPYTHON_VIAI/              ← fork từ MoneyPrinterTurbo
+├── .github/                # CI/CD workflows
+├── app/                    # Core logic (services, models, config)
+├── docs/                   # Tài liệu kỹ thuật
+├── resource/               # Font, âm thanh, assets tĩnh
+├── test/                   # Unit tests
+├── webui/                  # Streamlit frontend (Main.py ở đây)
+│   └── Main.py             # Điểm chạy chính: streamlit run webui/Main.py
+├── .dockerignore
+├── .env.example            # Mẫu cấu hình API keys
 ├── requirements.txt
 └── README.md
 ```
@@ -173,4 +167,4 @@ Phần Việt hóa, prompt tiếng Việt, TTS tích hợp và module gợi ý t
 
 ---
 
-*Built with ❤️ by JuPython 
+*Built with ❤️ by JuPython
