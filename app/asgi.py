@@ -2,6 +2,12 @@
 
 import os
 
+from app.db.database import Base, engine
+import app.db.models
+from app.routers.api import api_router
+
+
+from app.db.seed.seed import run_seed
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -47,6 +53,8 @@ def get_application() -> FastAPI:
     instance.include_router(root_api_router)
     instance.add_exception_handler(HttpException, exception_handler)
     instance.add_exception_handler(RequestValidationError, validation_exception_handler)
+    instance.include_router(root_api_router)
+    instance.include_router(api_router)
     return instance
 
 
@@ -80,3 +88,11 @@ def shutdown_event():
 @app.on_event("startup")
 def startup_event():
     logger.info("startup event")
+
+    print(Base.metadata.tables.keys())
+
+    Base.metadata.create_all(bind=engine)
+
+    run_seed()
+
+    logger.info("Database initialized")

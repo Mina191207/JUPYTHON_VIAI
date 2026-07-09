@@ -37,3 +37,6 @@ streamlit.log
 .codegraph
 /docs/superpowers
 .understand-anything
+
+#seed files
+/app/db/seed/

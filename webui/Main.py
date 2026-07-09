@@ -227,21 +227,6 @@ def open_task_folder(task_id):
         logger.error(e)
 
 
-def scroll_to_bottom():
-    js = """
-    <script>
-        console.log("scroll_to_bottom");
-        function scroll(dummy_var_to_force_repeat_execution){
-            var sections = parent.document.querySelectorAll('section.main');
-            console.log(sections);
-            for(let index = 0; index<sections.length; index++) {
-                sections[index].scrollTop = sections[index].scrollHeight;
-            }
-        }
-        scroll(1);
-    </script>
-    """
-    st.components.v1.html(js, height=0, width=0)
 
 
 def init_log():

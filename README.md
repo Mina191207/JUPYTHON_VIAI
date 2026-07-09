@@ -35,7 +35,10 @@
 
 ### Yêu cầu hệ thống
 
-- Python **3.11+**
+- Python **3.11+** 
++ python -m venv .venv
++ source .venv/Scripts/activate
++ pip install -r requirements.txt
 - [FFmpeg](https://ffmpeg.org/download.html) — bắt buộc để render video
 - [ImageMagick](https://imagemagick.org/script/download.php) — bắt buộc để render phụ đề
 - Git

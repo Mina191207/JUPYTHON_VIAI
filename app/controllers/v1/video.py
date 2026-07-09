@@ -46,7 +46,7 @@ _max_concurrent_tasks = config.app.get("max_concurrent_tasks", 5)
 _max_queued_tasks = config.app.get("max_queued_tasks", 100)
 
 redis_url = f"redis://:{_redis_password}@{_redis_host}:{_redis_port}/{_redis_db}"
-# 根据配置选择合适的任务管理器
+# Dựa vào cấu hình để chọn trình quản lý tác vụ phù hợp
 if _enable_redis:
     task_manager = RedisTaskManager(
         max_concurrent_tasks=_max_concurrent_tasks,
@@ -61,8 +61,8 @@ else:
 
 
 def _sanitize_upload_filename(filename: str, request_id: str) -> str:
-    # 浏览器或客户端有时会附带目录信息，甚至可能夹带 ../ 这类穿越片段。
-    # 这里只保留纯文件名，避免上传接口把文件写到目标目录之外。
+    # Trình duyệt hoặc client đôi khi gửi kèm thông tin thư mục, thậm chí có thể chứa các đoạn ../ để vượt cấp.
+    # Ở đây chỉ giữ lại tên tệp thuần túy, tránh việc giao diện tải lên ghi tệp ra ngoài thư mục đích.
     normalized_name = (filename or "").replace("\\", "/").split("/")[-1].strip()
     if not normalized_name or normalized_name in {".", ".."}:
         raise HttpException(
@@ -91,14 +91,14 @@ def _task_file_to_uri(file: str, endpoint: str, task_dir: str, request_id: str) 
     if not isinstance(file, str):
         return file
 
-    if file.startswith(("http://", "https://")):
+    if file.startswith(("http://", "https://")): # pyright: ignore
         return file
 
     try:
         resolved_path = file_security.resolve_path_within_directory(task_dir, file)
     except ValueError as exc:
-        # 任务状态理论上只应保存任务目录内的产物路径。这里不再继续拼接 URL，
-        # 避免把异常路径包装成可访问链接；同时保留原值，便于排查历史脏数据。
+        # Trạng thái tác vụ về lý thuyết chỉ nên lưu đường dẫn sản phẩm trong thư mục tác vụ. Ở đây không tiếp tục ghép URL,
+        # để tránh đóng gói đường dẫn bất thường thành liên kết có thể truy cập; đồng thời giữ lại giá trị gốc để tiện cho việc điều tra dữ liệu bẩn trong quá khứ.
         logger.warning(
             f"skip unsafe task output path, request_id: {request_id}, path: {file}, "
             f"error: {str(exc)}"
@@ -246,8 +246,8 @@ def get_bgm_list(request: Request):
             {
                 "name": filename,
                 "size": os.path.getsize(file),
-                # 只返回文件名，避免把服务器绝对路径暴露给调用方。
-                # 服务端后续会把该文件名解析回 songs 白名单目录。
+                # Chỉ trả về tên tệp, tránh tiết lộ đường dẫn tuyệt đối của máy chủ cho bên gọi.
+                # Phía máy chủ sau đó sẽ phân giải tên tệp này trở lại thư mục trong danh sách trắng songs.
                 "file": filename,
             }
         )
@@ -263,11 +263,11 @@ def get_bgm_list(request: Request):
 def upload_bgm_file(request: Request, file: UploadFile = File(...)):
     request_id = base.get_task_id(request)
     safe_filename = _sanitize_upload_filename(file.filename, request_id)
-    # check file ext
+    # kiểm tra phần mở rộng của tệp
     if safe_filename.lower().endswith("mp3"):
         song_dir = utils.song_dir()
         save_path = os.path.join(song_dir, safe_filename)
-        # save file
+        # lưu tệp
         with open(save_path, "wb+") as buffer:
             # If the file already exists, it will be overwritten
             file.file.seek(0)
@@ -288,8 +288,8 @@ def get_video_materials_list(request: Request):
     files = []
     for suffix in allowed_suffixes:
         files.extend(glob.glob(os.path.join(local_videos_dir, f"*.{suffix}")))
-    # 文件系统枚举顺序不稳定，直接返回会导致“顺序拼接”在不同机器或不同
-    # 时刻表现不一致。这里统一按文件名排序，至少保证服务端返回顺序可预测。
+    # Thứ tự liệt kê của hệ thống tệp không ổn định, trả về trực tiếp sẽ dẫn đến việc "nối theo thứ tự"
+    # hoạt động không nhất quán trên các máy khác nhau hoặc ở các thời điểm khác nhau. Ở đây thống nhất sắp xếp theo tên tệp, ít nhất đảm bảo thứ tự trả về của máy chủ có thể dự đoán được.
     files.sort(key=lambda file_path: os.path.basename(file_path).lower())
     video_materials_list = []
     for file in files:
@@ -298,8 +298,8 @@ def get_video_materials_list(request: Request):
             {
                 "name": filename,
                 "size": os.path.getsize(file),
-                # 与 BGM 一样，只返回文件名；创建任务时再在 local_videos
-                # 白名单目录内解析，避免 API 泄露宿主机绝对路径。
+                # Tương tự như BGM, chỉ trả về tên tệp; khi tạo tác vụ sẽ phân giải trong thư mục
+                # danh sách trắng local_videos, tránh API tiết lộ đường dẫn tuyệt đối của máy chủ.
                 "file": filename,
             }
         )
@@ -315,14 +315,14 @@ def get_video_materials_list(request: Request):
 def upload_video_material_file(request: Request, file: UploadFile = File(...)):
     request_id = base.get_task_id(request)
     safe_filename = _sanitize_upload_filename(file.filename, request_id)
-    # check file ext
+    # kiểm tra phần mở rộng của tệp
     allowed_suffixes = ("mp4", "mov", "avi", "flv", "mkv", "jpg", "jpeg", "png")
     normalized_filename = safe_filename.lower()
-    # 统一按小写扩展名校验，兼容 .MOV 这类大写后缀文件。
+    # Thống nhất kiểm tra theo phần mở rộng viết thường, để tương thích với các tệp có đuôi viết hoa như .MOV.
     if normalized_filename.endswith(allowed_suffixes):
         local_videos_dir = utils.storage_dir("local_videos", create=True)
         save_path = os.path.join(local_videos_dir, safe_filename)
-        # save file
+        # lưu tệp
         with open(save_path, "wb+") as buffer:
             # If the file already exists, it will be overwritten
             file.file.seek(0)
@@ -380,10 +380,10 @@ async def stream_video(request: Request, file_path: str):
 @router.get("/download/{file_path:path}")
 async def download_video(request: Request, file_path: str):
     """
-    download video
-    :param request: Request request
-    :param file_path: video file path, eg: /cd1727ed-3473-42a2-a7da-4faafafec72b/final-1.mp4
-    :return: video file
+    tải video
+    :param request: Yêu cầu Request
+    :param file_path: đường dẫn tệp video, ví dụ: /cd1727ed-3473-42a2-a7da-4faafafec72b/final-1.mp4
+    :return: tệp video
     """
     request_id = base.get_task_id(request)
     tasks_dir = utils.task_dir()
