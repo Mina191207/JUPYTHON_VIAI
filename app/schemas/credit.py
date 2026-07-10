@@ -7,4 +7,9 @@ class AddCreditRequest(BaseModel):
 
 
 class CreditResponse(BaseModel):
+    message: str
     balance: int
+    transaction: int | None = None
+
+class CreditBalanceResponse(BaseModel):
+    credit_balance: int
