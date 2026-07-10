@@ -15,6 +15,10 @@ from fastapi import HTTPException
 
 from loguru import logger
 
+from app.schemas.auth import RegisterRequest
+from app.utils.security import hash_password
+
+
 auth = APIRouter(
     prefix="/auth",
     tags=["Authentication"]
@@ -79,4 +83,57 @@ def logout(
 
     return {
         "message": "Logout success"
+    }
+
+@auth.post("/register")
+def register(
+    request: RegisterRequest,
+    db: Session = Depends(get_db)
+):
+
+    # Kiểm tra username đã tồn tại
+    username_exists = (
+        db.query(User)
+        .filter(User.username == request.username)
+        .first()
+    )
+
+    if username_exists:
+        raise HTTPException(
+            status_code=400,
+            detail="Username already exists"
+        )
+
+    # Kiểm tra email đã tồn tại
+    email_exists = (
+        db.query(User)
+        .filter(User.email == request.email)
+        .first()
+    )
+
+    if email_exists:
+        raise HTTPException(
+            status_code=400,
+            detail="Email already exists"
+        )
+
+    # Tạo user mới
+    new_user = User(
+        username=request.username,
+        email=request.email,
+        phone_number=request.phone_number,
+        password_hash=hash_password(request.password),
+        role="user",
+        credit_balance=0,
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return {
+        "message": "Register successfully",
+        "id": new_user.id,
+        "username": new_user.username,
+        "email": new_user.email,
     }

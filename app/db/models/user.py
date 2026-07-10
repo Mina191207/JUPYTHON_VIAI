@@ -18,7 +18,7 @@ class User(Base):
 
     password_hash = Column(String(255), nullable=False)
 
-    role = Column(String(20), default="user")
+    role = Column(String(20), default="user", nullable=False)
 
     credit_balance = Column(Integer, default=0)
 
