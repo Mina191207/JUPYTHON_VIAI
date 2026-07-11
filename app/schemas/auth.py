@@ -2,13 +2,15 @@ from pydantic import BaseModel, Field, EmailStr
 
 
 class LoginRequest(BaseModel):
-    username: str
+    email: EmailStr
     password: str
 
 class RegisterRequest(BaseModel):
-    username: str = Field(min_length=3, max_length=100)
-
     email: EmailStr
+
+    first_name: str | None = Field(max_length=100)
+
+    last_name: str | None = Field(max_length=100)
 
     phone_number: str | None = None
 
@@ -18,9 +20,11 @@ class RegisterRequest(BaseModel):
 class RegisterResponse(BaseModel):
     id: int
 
-    username: str
-
     email: EmailStr
+
+    first_name: str | None = None
+
+    last_name: str | None = None
 
     role: str
 

@@ -32,14 +32,14 @@ def login(
 
     db_user = (
         db.query(User)
-        .filter(User.username == form_data.username)
+        .filter(User.email == form_data.username)
         .first()
     )
 
     if db_user is None:
         raise HTTPException(
             status_code=401,
-            detail="Invalid username or password"
+            detail="Invalid email or password"
         )
 
     if not verify_password(
@@ -48,12 +48,12 @@ def login(
     ):
         raise HTTPException(
             status_code=401,
-            detail="Invalid username or password"
+            detail="Invalid email or password"
         )
 
     token = create_access_token(
         {
-            "sub": db_user.username,
+            "sub": db_user.email,
             "id": db_user.id,
             "role": db_user.role
         }
@@ -70,7 +70,10 @@ def me(
 ):
     return {
         "id": current_user.id,
-        "username": current_user.username,
+        "picture": current_user.picture,
+        "phone_number": current_user.phone_number,
+        "first_name": current_user.first_name,
+        "last_name": current_user.last_name,
         "email": current_user.email,
         "role": current_user.role,
     }
@@ -79,7 +82,7 @@ def me(
 def logout(
     current_user: User = Depends(get_current_user)
 ):
-    logger.info(f"{current_user.username} logout")
+    logger.info(f"{current_user.email} logout")
 
     return {
         "message": "Logout success"
@@ -91,17 +94,17 @@ def register(
     db: Session = Depends(get_db)
 ):
 
-    # Kiểm tra username đã tồn tại
-    username_exists = (
+    # Kiểm tra email đã tồn tại
+    email_exists = (
         db.query(User)
-        .filter(User.username == request.username)
+        .filter(User.email == request.email)
         .first()
     )
 
-    if username_exists:
+    if email_exists:
         raise HTTPException(
             status_code=400,
-            detail="Username already exists"
+            detail="Email already exists"
         )
 
     # Kiểm tra email đã tồn tại
@@ -119,7 +122,8 @@ def register(
 
     # Tạo user mới
     new_user = User(
-        username=request.username,
+        first_name=request.first_name,
+        last_name=request.last_name,
         email=request.email,
         phone_number=request.phone_number,
         password_hash=hash_password(request.password),
@@ -134,6 +138,7 @@ def register(
     return {
         "message": "Register successfully",
         "id": new_user.id,
-        "username": new_user.username,
+        "first_name": new_user.first_name,
+        "last_name": new_user.last_name,
         "email": new_user.email,
     }

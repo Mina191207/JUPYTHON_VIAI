@@ -19,9 +19,9 @@ def get_current_user(
             detail="Invalid token"
         )
 
-    username = payload.get("sub")
+    email: str= payload.get("sub")
 
-    if username is None:
+    if email is None:
         raise HTTPException(
             status_code=401,
             detail="Invalid token"
@@ -29,7 +29,7 @@ def get_current_user(
 
     db_user = (
         db.query(User)
-        .filter(User.username == username)
+        .filter(User.email == email)
         .first()
     )
 
