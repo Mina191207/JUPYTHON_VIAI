@@ -1,8 +1,18 @@
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+)
 
 from app.db.database import Base
+from app.constants.payment import (
+    PaymentStatus,
+    PaymentType,
+)
 
 
 class Payment(Base):
@@ -10,18 +20,58 @@ class Payment(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+    )
 
-    plan_id = Column(Integer, ForeignKey("plans.id"))
+    plan_id = Column(
+        Integer,
+        ForeignKey("plans.id"),
+        nullable=True,
+    )
 
-    payment_method_id = Column(Integer,ForeignKey("payment_methods.id"),nullable=False,)
+    payment_method_id = Column(
+        Integer,
+        ForeignKey("payment_methods.id"),
+        nullable=False,
+    )
 
-    amount = Column(Float)
+    # CREDIT | SUBSCRIPTION
+    payment_type = Column(
+        String(30),
+        nullable=False,
+    )
 
-    credit_added = Column(Integer)
+    # Số tiền thanh toán (VND)
+    amount = Column(
+        Integer,
+        nullable=False,
+    )
 
-    status = Column(String(30))
+    # Credit cộng thêm (chỉ dùng khi nạp credit)
+    credit_added = Column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
 
-    transaction_id = Column(String(255), unique=True)
+    # PENDING | SUCCESS | FAILED
+    status = Column(
+        String(30),
+        default=PaymentStatus.PENDING.value,
+        nullable=False,
+    )
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    # Mã giao dịch từ cổng thanh toán
+    transaction_id = Column(
+        String(255),
+        unique=True,
+        nullable=True,
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+    )
