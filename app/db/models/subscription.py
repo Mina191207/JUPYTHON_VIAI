@@ -1,6 +1,7 @@
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
 
 from app.db.database import Base
 
@@ -24,7 +25,7 @@ class Subscription(Base):
 
     status = Column(
         String(20),
-        default="active",
+        default="ACTIVE",
         nullable=False,
     )
 
@@ -34,7 +35,16 @@ class Subscription(Base):
         nullable=False,
     )
 
-    end_date = Column(DateTime)
+    end_date = Column(
+        DateTime,
+        nullable=False,
+    )
+
+    auto_renew = Column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
 
     created_at = Column(
         DateTime,
@@ -46,3 +56,6 @@ class Subscription(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
     )
+
+    user = relationship("User")
+    plan = relationship("Plan")

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Integer, String
 
 from app.db.database import Base
 
@@ -33,3 +33,7 @@ class User(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
     )
+
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    last_login = Column(DateTime)

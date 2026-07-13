@@ -35,3 +35,6 @@ class PaymentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class PaymentSuccessResponse(BaseModel):
+    message: str

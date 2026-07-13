@@ -14,6 +14,8 @@ class CreditTransaction(Base):
 
     payment_id = Column(Integer, ForeignKey("payments.id"), nullable=True)
 
+    video_id = Column(Integer, ForeignKey("videos.id"), nullable=True)
+
     type = Column(String(30), nullable=False)
 
     amount = Column(Integer, nullable=False)
