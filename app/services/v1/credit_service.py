@@ -57,15 +57,6 @@ class CreditService:
 
         db.add(transaction)
 
-        try:
-            db.commit()
-        except Exception:
-            db.rollback()
-            raise
-
-        db.refresh(user)
-        db.refresh(transaction)
-
         return {
             "message": "Add credit successfully",
             "balance": user.credit_balance,
@@ -107,15 +98,6 @@ class CreditService:
         )
 
         db.add(transaction)
-
-        try:
-            db.commit()
-        except Exception:
-            db.rollback()
-            raise
-
-        db.refresh(user)
-        db.refresh(transaction)
 
         return {
             "message": "Deduct credit successfully",

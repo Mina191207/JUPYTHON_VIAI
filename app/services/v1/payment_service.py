@@ -7,6 +7,8 @@ from app.db.models.payment_method import PaymentMethod
 from app.db.models.plan import Plan
 from app.db.models.user import User
 
+from app.services.v1.credit_service import credit_service
+from app.services.v1.subscription_service import subscription_service
 
 class PaymentService:
 
@@ -18,7 +20,7 @@ class PaymentService:
         user_id: int,
         payment_type: str,
         payment_method_id: int,
-        amount: int,
+        amount: int | None = None,
         plan_id: int | None = None,
     ):
 
@@ -109,13 +111,13 @@ class PaymentService:
             )
 
         payment = Payment(
-        user_id=user.id,
-        plan_id=plan_id,
-        payment_method_id=payment_method.id,
-        payment_type=payment_type,
-        amount=amount,
-        credit_added=credit_added,
-        status=PaymentStatus.PENDING.value,
+            user_id=user.id,
+            plan_id=plan_id,
+            payment_method_id=payment_method.id,
+            payment_type=payment_type,
+            amount=amount,
+            credit_added=credit_added,
+            status=PaymentStatus.PENDING.value,
 )
 
         db.add(payment)
@@ -123,6 +125,60 @@ class PaymentService:
         db.refresh(payment)
 
         return payment
+    
+    def complete_payment(
+        self,
+        db: Session,
+        payment_id: int,
+        user_id: int,
+    ):
+
+        payment = (
+            db.query(Payment)
+            .filter(Payment.id == payment_id)
+            .filter(Payment.user_id == user_id)
+            .first()
+        )
+
+        if payment is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Payment not found",
+            )
+
+        if payment.status == PaymentStatus.SUCCESS.value:
+            raise HTTPException(
+                status_code=400,
+                detail="Payment already completed",
+            )
+
+        try:
+
+            payment.status = PaymentStatus.SUCCESS.value
+
+            credit_service.add_credit(
+                db=db,
+                user_id=payment.user_id,
+                amount=payment.credit_added,
+                reason="Payment Success",
+            )
+
+            if payment.payment_type == PaymentType.SUBSCRIPTION.value:
+
+                subscription_service.activate_subscription(
+                    db=db,
+                    user_id=payment.user_id,
+                    plan_id=payment.plan_id,
+                )
+
+            db.commit()
+            db.refresh(payment)
+
+            return payment
+
+        except Exception:
+            db.rollback()
+            raise
 
 
 payment_service = PaymentService()

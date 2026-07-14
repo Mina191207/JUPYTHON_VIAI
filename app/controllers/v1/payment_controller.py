@@ -14,6 +14,8 @@ from app.schemas.payment import (
 from app.services.v1.auth_service import get_current_user
 from app.services.v1.payment_service import payment_service
 
+from app.schemas.payment import PaymentSuccessResponse
+
 
 router = new_router()
 
@@ -43,4 +45,24 @@ def create_payment(
         "amount": payment.amount,
         "credit_added": payment.credit_added,
         "status": payment.status,
+    }
+
+@router.post(
+    "/payments/{payment_id}/complete",
+    response_model=PaymentSuccessResponse,
+)
+def complete_payment(
+    payment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+
+    payment_service.complete_payment(
+        db=db,
+        payment_id=payment_id,
+        user_id=current_user.id,
+    )
+
+    return {
+        "message": "Payment completed successfully"
     }
