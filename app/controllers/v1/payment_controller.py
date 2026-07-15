@@ -16,6 +16,9 @@ from app.services.v1.payment_service import payment_service
 
 from app.schemas.payment import PaymentSuccessResponse
 
+from fastapi import Request
+
+from app.services.v1.vnpay_service import create_payment_url
 
 router = new_router()
 
@@ -25,7 +28,8 @@ router = new_router()
     response_model=CreatePaymentResponse,
 )
 def create_payment(
-    request: CreatePaymentRequest,
+    request_body: CreatePaymentRequest,
+    http_request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -33,10 +37,15 @@ def create_payment(
     payment = payment_service.create_payment(
         db=db,
         user_id=current_user.id,
-        payment_type=request.payment_type,
-        payment_method_id=request.payment_method_id,
-        amount=request.amount,
-        plan_id=request.plan_id,
+        payment_type=request_body.payment_type,
+        payment_method_id=request_body.payment_method_id,
+        amount=request_body.amount,
+        plan_id=request_body.plan_id,
+        )
+
+    payment_url = create_payment_url(
+        payment=payment,
+        ip_addr=http_request.client.host,
     )
 
     return {
@@ -45,6 +54,7 @@ def create_payment(
         "amount": payment.amount,
         "credit_added": payment.credit_added,
         "status": payment.status,
+        "payment_url": payment_url,
     }
 
 @router.post(
@@ -61,6 +71,7 @@ def complete_payment(
         db=db,
         payment_id=payment_id,
         user_id=current_user.id,
+
     )
 
     return {

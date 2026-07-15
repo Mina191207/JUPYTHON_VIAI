@@ -19,6 +19,7 @@ class CreatePaymentRequest(BaseModel):
 class CreatePaymentResponse(BaseModel):
     id: int
     payment_type: PaymentType
+    payment_url: str
     amount: int
     credit_added: int
     status: str

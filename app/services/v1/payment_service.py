@@ -156,14 +156,16 @@ class PaymentService:
 
             payment.status = PaymentStatus.SUCCESS.value
 
-            credit_service.add_credit(
-                db=db,
-                user_id=payment.user_id,
-                amount=payment.credit_added,
-                reason="Payment Success",
-            )
+            if payment.payment_type == PaymentType.CREDIT.value:
 
-            if payment.payment_type == PaymentType.SUBSCRIPTION.value:
+                credit_service.add_credit(
+                    db=db,
+                    user_id=payment.user_id,
+                    amount=payment.credit_added,
+                    reason="Payment Success",
+                )
+
+            elif payment.payment_type == PaymentType.SUBSCRIPTION.value:
 
                 subscription_service.activate_subscription(
                     db=db,

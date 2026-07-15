@@ -1,11 +1,11 @@
+from app.services.v1.vnpay_service import create_payment_url
 from app.db.database import SessionLocal
-from app.db.models.user import User
+from app.db.models.payment import Payment
 
 db = SessionLocal()
 
-users = db.query(User).all()
+payment = db.query(Payment).filter(Payment.id == 1).first()
 
-for u in users:
-    print(u.id, u.email, u.password_hash)
+url = create_payment_url(payment, "127.0.0.1")
 
-db.close()
+print(url)

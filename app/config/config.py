@@ -187,6 +187,8 @@ ui = _cfg.get(
     },
 )
 
+vnpay = _cfg.get("vnpay", {})
+
 hostname = socket.gethostname()
 
 log_level = _cfg.get("log_level", "DEBUG")
@@ -199,6 +201,15 @@ project_description = _cfg.get(
     "<br><small>Supported by <a href='https://aihubmix.com/?aff=CEve'>AIHubMix</a></small>",
 )
 project_version = _cfg.get("project_version", "1.3.0")
+
+VNP_TMN_CODE = vnpay.get("tmn_code", "")
+VNP_HASH_SECRET = vnpay.get("hash_secret", "")
+VNP_URL = vnpay.get(
+    "url",
+    "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
+)
+VNP_RETURN_URL = vnpay.get("return_url", "")
+
 reload_debug = False
 
 app["redis_host"] = os.getenv(
