@@ -156,17 +156,18 @@ class PaymentService:
 
             payment.status = PaymentStatus.SUCCESS.value
 
-            if payment.payment_type == PaymentType.CREDIT.value:
+            payment.status = PaymentStatus.SUCCESS.value
 
-                credit_service.add_credit(
-                    db=db,
-                    user_id=payment.user_id,
-                    amount=payment.credit_added,
-                    reason="Payment Success",
-                )
+            # Luôn cộng credit
+            credit_service.add_credit(
+                db=db,
+                user_id=payment.user_id,
+                amount=payment.credit_added,
+                reason="Payment Success",
+            )
 
-            elif payment.payment_type == PaymentType.SUBSCRIPTION.value:
-
+            # Nếu là Subscription thì kích hoạt gói
+            if payment.payment_type == PaymentType.SUBSCRIPTION.value:
                 subscription_service.activate_subscription(
                     db=db,
                     user_id=payment.user_id,
