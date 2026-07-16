@@ -56,6 +56,10 @@ class SubscriptionService:
 
             db.add(subscription)
 
+        db.commit()
+        db.refresh(subscription)
+
+
         return subscription
 
 
