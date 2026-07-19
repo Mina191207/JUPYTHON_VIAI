@@ -35,6 +35,7 @@ class CreditService:
         reason: str,
     ):
 
+
         if amount <= 0:
             raise HTTPException(
                 status_code=400,
@@ -56,6 +57,9 @@ class CreditService:
         )
 
         db.add(transaction)
+
+        db.commit()
+        db.refresh(transaction)
 
         return {
             "message": "Add credit successfully",
@@ -99,6 +103,9 @@ class CreditService:
 
         db.add(transaction)
 
+        db.commit()
+        db.refresh(transaction)
+
         return {
             "message": "Deduct credit successfully",
             "balance": user.credit_balance,
@@ -122,5 +129,15 @@ class CreditService:
 
         return transactions
 
+    def check_balance(
+        self,
+        db: Session,
+        user_id: int,
+        required_credit: int,
+    ):
+
+        user = self._get_user(db, user_id)
+
+        return user.credit_balance >= required_credit
 
 credit_service = CreditService()

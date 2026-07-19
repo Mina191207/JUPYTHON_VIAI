@@ -62,5 +62,25 @@ class SubscriptionService:
 
         return subscription
 
+    def get_active_subscription(
+        self,
+        db: Session,
+        user_id: int,
+    ):
+
+        now = datetime.utcnow()
+
+        subscription = (
+            db.query(Subscription)
+            .filter(
+                Subscription.user_id == user_id,
+                Subscription.status == "ACTIVE",
+                Subscription.end_date > now,
+            )
+            .first()
+        )
+
+        return subscription
+
 
 subscription_service = SubscriptionService()
