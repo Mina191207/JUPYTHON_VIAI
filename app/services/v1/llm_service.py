@@ -578,7 +578,11 @@ def _generate_response(
                 )
                 if response:
                     if isinstance(response, ChatCompletion):
-                        return _extract_chat_completion_text(response, llm_provider)
+                        return {
+                            "content": _extract_chat_completion_text(response, llm_provider),
+                            "usage": response.usage,
+                            "model": response.model,
+                        }
                     else:
                         raise Exception(
                             f'[{llm_provider}] returned an invalid response: "{response}", please check your network '

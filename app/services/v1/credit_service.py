@@ -106,11 +106,7 @@ class CreditService:
         db.commit()
         db.refresh(transaction)
 
-        return {
-            "message": "Deduct credit successfully",
-            "balance": user.credit_balance,
-            "transaction": transaction.id
-        }
+        return transaction
 
     def get_history(
         self,
