@@ -644,8 +644,7 @@ def _generate_response(
 
         return _normalize_text_response(content, llm_provider)
     except Exception as e:
-        return f"Error: {_sanitize_error_message(e)}"
-
+        raise Exception(_sanitize_error_message(e))
 
 def _limit_script_text(text: str | None, max_length: int, field_name: str) -> str:
     value = (text or "").strip()
@@ -767,6 +766,9 @@ def generate_script(
         # Join the selected paragraphs into a single string
         return "\n\n".join(paragraphs)
 
+
+    final_script = ""
+    last_error = None
     for i in range(_max_retries):
         try:
             response = _generate_response(
@@ -787,15 +789,19 @@ def generate_script(
             if final_script:
                 break
         except Exception as e:
+            last_error = e
             logger.error(f"failed to generate script: {e}")
 
         if i < _max_retries:
             logger.warning(f"failed to generate video script, trying again... {i + 1}")
-    if "Error: " in final_script:
-        logger.error(f"failed to generate video script: {final_script}")
-    else:
-        logger.success(f"completed: \n{final_script}")
-    return final_script.strip()
+        if final_script:
+            logger.success(f"completed: \n{final_script}")
+            return final_script.strip()
+
+        if last_error:
+            raise last_error
+
+        raise Exception("Failed to generate script")
 
 
 def _strip_code_fence(text: str) -> str:

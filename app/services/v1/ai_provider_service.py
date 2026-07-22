@@ -1,9 +1,24 @@
 from sqlalchemy.orm import Session
 
 from app.db.models.ai_provider import AIProvider
-
+#REDACTED
 
 class AIProviderService:
+    def get_all_active(
+        self,
+        db: Session,
+    ):
+
+        return (
+            db.query(AIProvider)
+            .filter(
+                AIProvider.is_active.is_(True),
+            )
+            .order_by(
+                AIProvider.priority.asc(),
+            )
+            .all()
+        )
 
     def get_provider(
         self,

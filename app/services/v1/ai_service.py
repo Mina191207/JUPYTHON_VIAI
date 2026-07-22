@@ -27,13 +27,6 @@ class AIService:
                 status_code=404,
                 detail="User not found",
             )
-        provider = ai_provider_service.get_default_provider(db)
-
-        if provider is None:
-            raise HTTPException(
-                status_code=404,
-                detail="No AI provider available",
-            )
 
         subscription = subscription_service.get_active_subscription(
             db=db,
@@ -56,7 +49,6 @@ class AIService:
 
         return {
             "user": user,
-            "provider": provider,
             "subscription": subscription,
         }
     
@@ -112,22 +104,37 @@ class AIService:
         )
 
         user = data["user"]
-        provider = data["provider"]
+        providers = ai_provider_service.get_all_active(db)
         subscription = data["subscription"]
-        try:
-            script = llm_service.generate_script(
-                provider_name=provider.provider,
-                model_name=provider.model,
-                api_key=provider.api_key,
-                base_url=provider.base_url,
-                video_subject=video_subject,
-                language=language,
-                paragraph_number=paragraph_number,
-            )
-        except Exception as e:
+
+        script = None
+        provider = None
+
+        for p in providers:
+
+            try:
+
+                script = llm_service.generate_script(
+                    provider_name=p.provider,
+                    model_name=p.model,
+                    api_key=p.api_key,
+                    base_url=p.base_url,
+                    video_subject=video_subject,
+                    language=language,
+                    paragraph_number=paragraph_number,
+                )
+
+                provider = p
+                break
+
+            except Exception as e:
+
+                print(f"{p.provider} failed:", e)
+
+        if provider is None:
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to generate script: {str(e)}",
+                detail="No AI provider available",
             )
 
         self._finish_ai_request(
