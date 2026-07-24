@@ -60,6 +60,9 @@ class AIService:
         subscription,
         required_credit: int,
         reason: str,
+        prompt_tokens: int,
+        completion_tokens: int,
+        total_tokens: int,
     ):
         transaction = None
 
@@ -77,9 +80,9 @@ class AIService:
             provider_id=provider.id,
             credit_transaction_id=transaction.id if transaction else None,
             model=provider.model,
-            prompt_tokens=0,
-            completion_tokens=0,
-            total_tokens=0,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
             cost=0,
             credit_used=required_credit if not subscription else 0,
         )
@@ -114,7 +117,7 @@ class AIService:
 
             try:
 
-                script = llm_service.generate_script(
+                result = llm_service.generate_script(
                     provider_name=p.provider,
                     model_name=p.model,
                     api_key=p.api_key,
@@ -124,6 +127,7 @@ class AIService:
                     paragraph_number=paragraph_number,
                 )
 
+                script = result["script"]
                 provider = p
                 break
 
@@ -144,10 +148,16 @@ class AIService:
             subscription=subscription,
             required_credit=required_credit,
             reason="Generate video script",
+            prompt_tokens=result["prompt_tokens"],
+            completion_tokens=result["completion_tokens"],
+            total_tokens=result["total_tokens"],
         )
 
         return {
             "script": script,
+            "prompt_tokens": result["prompt_tokens"],
+            "completion_tokens": result["completion_tokens"],
+            "total_tokens": result["total_tokens"],
         }
 
 

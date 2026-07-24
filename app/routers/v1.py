@@ -13,8 +13,8 @@ from app.controllers.v1.ai_controller import router as ai_router
 router = APIRouter()
 
 router.include_router(credit_router)
-router.include_router(video_router)
-router.include_router(llm_router)
+#router.include_router(video_router)
+#router.include_router(llm_router)
 router.include_router(auth_router)
 router.include_router(payment_router)
 router.include_router(plan_router)

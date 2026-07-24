@@ -1,4 +1,4 @@
-from fastapi import Depends
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.controllers.v1.base import new_router
@@ -20,8 +20,7 @@ from fastapi import Request
 
 from app.services.v1.vnpay_service import create_payment_url
 
-router = new_router()
-
+router = APIRouter(prefix="", tags=["Payment"])
 
 @router.post(
     "/payments/create",

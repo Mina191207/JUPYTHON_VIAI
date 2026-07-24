@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.services.v1.ai_provider_service import ai_provider_service
 
-router = APIRouter(prefix="/ai-provider", tags=["AI Provider"])
+router = APIRouter(prefix="/ai-provider", tags=["AI"])
 
 
 @router.get("/test")

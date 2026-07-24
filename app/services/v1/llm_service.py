@@ -543,7 +543,15 @@ def _generate_response(
                     print("Gemini ERROR:", e)
                     raise ValueError(f"[{llm_provider}] request failed: {e}") from e
 
-                return _normalize_text_response(generated_text, llm_provider)
+                return {
+                    "text": _normalize_text_response(
+                        generated_text,
+                        llm_provider,
+                    ),
+                    "prompt_tokens": response.usage_metadata.prompt_token_count,
+                    "completion_tokens": response.usage_metadata.candidates_token_count,
+                    "total_tokens": response.usage_metadata.total_token_count,
+                }
 
             if llm_provider == "cloudflare":
                 response = requests.post(
@@ -683,7 +691,19 @@ def _generate_response(
             )
             if response:
                 if isinstance(response, ChatCompletion):
-                    return _extract_chat_completion_text(response, llm_provider)
+
+                    text = _extract_chat_completion_text(
+                        response,
+                        llm_provider,
+                    )
+
+                    return {
+                        "text": text,
+                        "prompt_tokens": response.usage.prompt_tokens,
+                        "completion_tokens": response.usage.completion_tokens,
+                        "total_tokens": response.usage.total_tokens,
+                    }
+
                 else:
                     raise Exception(
                         f'[{llm_provider}] returned an invalid response: "{response}", please check your network '
@@ -834,7 +854,7 @@ def generate_script(
             )
 
             if response:
-                final_script = format_response(response)
+                final_script = format_response(response["text"])
             else:
                 logging.error("GPT returned an empty response")
 
@@ -859,7 +879,13 @@ def generate_script(
 
     if final_script:
         logger.success(f"completed:\n{final_script}")
-        return final_script.strip()
+
+        return {
+            "script": final_script.strip(),
+            "prompt_tokens": response.get("prompt_tokens", 0),
+            "completion_tokens": response.get("completion_tokens", 0),
+            "total_tokens": response.get("total_tokens", 0),
+        }
 
     if last_error:
         raise last_error

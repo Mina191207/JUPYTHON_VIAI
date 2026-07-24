@@ -1,4 +1,4 @@
-from fastapi import Depends
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.controllers.v1.base import new_router
@@ -14,7 +14,7 @@ from app.schemas.credit import (
 from app.services.v1.auth_service import get_current_user
 from app.services.v1.credit_service import credit_service
 
-router = new_router()
+router = APIRouter(prefix="", tags=["Credit"])
 
 
 @router.get(

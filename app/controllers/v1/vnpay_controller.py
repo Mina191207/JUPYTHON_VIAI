@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.controllers.v1.base import new_router
@@ -13,8 +13,7 @@ from app.services.v1.credit_service import credit_service
 from app.services.v1.payment_service import payment_service
 # from app.services.v1.subscription_service import subscription_service
 
-router = new_router()
-
+router = APIRouter(prefix="", tags=["Payment"])
 
 @router.get("/vnpay/return")
 def vnpay_return(

@@ -17,7 +17,7 @@ from loguru import logger
 
 from app.config import config
 from app.models.exception import HttpException
-from app.router import root_api_router
+#from app.router import root_api_router
 from app.utils import utils
 
 
@@ -50,10 +50,9 @@ def get_application() -> FastAPI:
         version=config.project_version,
         debug=False,
     )
-    instance.include_router(root_api_router)
+    #instance.include_router(root_api_router)
     instance.add_exception_handler(HttpException, exception_handler)
     instance.add_exception_handler(RequestValidationError, validation_exception_handler)
-    instance.include_router(root_api_router)
     instance.include_router(api_router)
     return instance
 
