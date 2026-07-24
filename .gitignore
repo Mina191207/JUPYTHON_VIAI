@@ -40,3 +40,6 @@ streamlit.log
 
 #seed files
 /app/db/seed/
+
+# data files
+/app/db/database.db
