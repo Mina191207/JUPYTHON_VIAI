@@ -1,6 +1,8 @@
 import json
 import logging
 import re
+from click import prompt
+from click import prompt
 import requests
 from typing import List
 
@@ -136,6 +138,19 @@ def _extract_qwen_generation_text(response) -> str:
     return _normalize_text_response(text, "qwen")
 
 
+def _normalize_gemini_base_url(base_url: str | None) -> str:
+    if not base_url:
+        return ""
+
+    normalized = str(base_url).strip().rstrip("/")
+    for suffix in ("/v1beta", "/v1"):
+        if normalized.endswith(suffix):
+            normalized = normalized[: -len(suffix)]
+            break
+
+    return normalized
+
+
 def _generate_response(
     prompt: str,
     provider_name: str = None,
@@ -151,7 +166,10 @@ def _generate_response(
     try:
         content = ""
         if provider_name:
+            provider_name = str(provider_name).strip()
             llm_provider = provider_name.lower()
+            if llm_provider == "google":
+                llm_provider = "gemini"
         else:
             llm_provider = config.app.get("llm_provider", "openai")
         logger.info(f"llm provider: {llm_provider}")
@@ -442,10 +460,15 @@ def _generate_response(
             if llm_provider == "gemini":
                 import google.generativeai as genai
 
+                base_url = _normalize_gemini_base_url(base_url)
                 if not base_url:
                     genai.configure(api_key=api_key, transport="rest")
                 else:
-                    genai.configure(api_key=api_key, transport="rest", client_options={'api_endpoint': base_url})
+                    genai.configure(
+                        api_key=api_key,
+                        transport="rest",
+                        client_options={"api_endpoint": base_url},
+                    )
 
                 generation_config = {
                     "temperature": 0.5,
@@ -472,6 +495,7 @@ def _generate_response(
                         "threshold": "BLOCK_ONLY_HIGH",
                     },
                 ]
+                print("Gemini: tạo model")
 
                 model = genai.GenerativeModel(
                     model_name=model_name,
@@ -479,17 +503,45 @@ def _generate_response(
                     safety_settings=safety_settings,
                 )
 
+                print("Gemini: tạo model xong, gọi generate_content")
+
                 try:
+                    print("Calling Gemini...")
+
                     response = model.generate_content(prompt)
-                    candidates = response.candidates
-                    generated_text = candidates[0].content.parts[0].text
-                except (AttributeError, IndexError) as e:
-                    logger.warning(
-                        f"gemini returned invalid response content: {str(e)}"
-                    )
-                    raise ValueError(
-                        f"[{llm_provider}] returned invalid response content"
-                    )
+
+                    print("Gemini response:", response)
+
+                    candidates = getattr(response, "candidates", None)
+                    if not candidates:
+                        candidates = getattr(response, "result", None)
+                        if candidates is not None and hasattr(candidates, "candidates"):
+                            candidates = getattr(candidates, "candidates", None)
+
+                    if not candidates:
+                        raise ValueError("[gemini] returned empty candidates")
+
+                    first_candidate = candidates[0]
+                    content = getattr(first_candidate, "content", None)
+                    if content is None:
+                        raise ValueError("[gemini] returned empty content")
+
+                    parts = getattr(content, "parts", None)
+                    if not parts:
+                        text = getattr(content, "text", None)
+                        if isinstance(text, str) and text.strip():
+                            generated_text = text
+                        else:
+                            raise ValueError("[gemini] returned invalid response content")
+                    else:
+                        first_part = parts[0]
+                        generated_text = getattr(first_part, "text", None)
+                        if generated_text is None:
+                            raise ValueError("[gemini] returned invalid response content")
+
+                except Exception as e:
+                    print("Gemini ERROR:", e)
+                    raise ValueError(f"[{llm_provider}] request failed: {e}") from e
 
                 return _normalize_text_response(generated_text, llm_provider)
 
@@ -769,6 +821,8 @@ def generate_script(
 
     final_script = ""
     last_error = None
+    last_error = None
+
     for i in range(_max_retries):
         try:
             response = _generate_response(
@@ -776,32 +830,41 @@ def generate_script(
                 provider_name=provider_name,
                 model_name=model_name,
                 api_key=api_key,
-                base_url=base_url,)
+                base_url=base_url,
+            )
+
             if response:
                 final_script = format_response(response)
             else:
-                logging.error("gpt returned an empty response")
+                logging.error("GPT returned an empty response")
 
-            # g4f may return an error message
             if final_script and "当日额度已消耗完" in final_script:
                 raise ValueError(final_script)
 
             if final_script:
+                logger.info(f"generated script text length: {len(final_script)}")
+                logger.info(f"generated script preview: {final_script[:200]}")
                 break
+
         except Exception as e:
             last_error = e
             logger.error(f"failed to generate script: {e}")
 
-        if i < _max_retries:
-            logger.warning(f"failed to generate video script, trying again... {i + 1}")
-        if final_script:
-            logger.success(f"completed: \n{final_script}")
-            return final_script.strip()
+        if i < _max_retries - 1:
+            logger.warning(
+                f"failed to generate video script, trying again... {i + 1}"
+            )
 
-        if last_error:
-            raise last_error
+    # ===== Sau khi thoát vòng lặp =====
 
-        raise Exception("Failed to generate script")
+    if final_script:
+        logger.success(f"completed:\n{final_script}")
+        return final_script.strip()
+
+    if last_error:
+        raise last_error
+
+    raise Exception("Failed to generate script")
 
 
 def _strip_code_fence(text: str) -> str:

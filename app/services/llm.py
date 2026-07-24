@@ -136,6 +136,19 @@ def _extract_qwen_generation_text(response) -> str:
     return _normalize_text_response(text, "qwen")
 
 
+def _normalize_gemini_base_url(base_url: str | None) -> str:
+    if not base_url:
+        return ""
+
+    normalized = str(base_url).strip().rstrip("/")
+    for suffix in ("/v1beta", "/v1"):
+        if normalized.endswith(suffix):
+            normalized = normalized[: -len(suffix)]
+            break
+
+    return normalized
+
+
 def _generate_response(prompt: str) -> str:
     try:
         content = ""
@@ -222,6 +235,7 @@ def _generate_response(prompt: str) -> str:
                 api_key = config.app.get("gemini_api_key")
                 model_name = config.app.get("gemini_model_name")
                 base_url = config.app.get("gemini_base_url", "")
+                base_url = _normalize_gemini_base_url(base_url)
                 # Gemini 旧模型名已经陆续下线，这里自动兼容历史配置，
                 # 避免用户沿用旧值时直接收到 404。
                 if not model_name:
@@ -401,7 +415,11 @@ def _generate_response(prompt: str) -> str:
                 if not base_url:
                     genai.configure(api_key=api_key, transport="rest")
                 else:
-                    genai.configure(api_key=api_key, transport="rest", client_options={'api_endpoint': base_url})
+                    genai.configure(
+                        api_key=api_key,
+                        transport="rest",
+                        client_options={"api_endpoint": base_url},
+                    )
 
                 generation_config = {
                     "temperature": 0.5,
@@ -439,12 +457,12 @@ def _generate_response(prompt: str) -> str:
                     response = model.generate_content(prompt)
                     candidates = response.candidates
                     generated_text = candidates[0].content.parts[0].text
-                except (AttributeError, IndexError) as e:
+                except Exception as e:
                     logger.warning(
-                        f"gemini returned invalid response content: {str(e)}"
+                        f"gemini request failed: {str(e)}"
                     )
                     raise ValueError(
-                        f"[{llm_provider}] returned invalid response content"
+                        f"[{llm_provider}] request failed: {str(e)}"
                     )
 
                 return _normalize_text_response(generated_text, llm_provider)

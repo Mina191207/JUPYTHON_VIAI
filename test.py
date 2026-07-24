@@ -7,4 +7,8 @@ db = SessionLocal()
 providers = ai_provider_service.get_all_active(db)
 
 for p in providers:
-    print(p.provider, p.priority)   
+    print(
+        p.provider,
+        p.priority,
+        p.api_key[:10],
+    )

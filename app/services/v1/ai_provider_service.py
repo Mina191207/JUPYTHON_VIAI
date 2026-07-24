@@ -1,7 +1,6 @@
 from sqlalchemy.orm import Session
 
 from app.db.models.ai_provider import AIProvider
-#REDACTED
 
 class AIProviderService:
     def get_all_active(

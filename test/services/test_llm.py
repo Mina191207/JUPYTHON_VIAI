@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from app.config import config
 from app.models.schema import VideoScriptRequest, VideoSocialMetadataRequest
 from app.services import llm
+from app.services.v1 import llm_service as v1_llm_service
 
 RUN_INTEGRATION_TESTS = os.environ.get("MPT_RUN_INTEGRATION_TESTS", "").lower() in {
     "1",
@@ -104,6 +105,35 @@ class TestScriptPromptOptions(unittest.TestCase):
         self.assertEqual(result, "第一段。\n\n第二段。")
         self.assertIn("- number of paragraphs: 2", captured["prompt"])
         self.assertIn("开头更有悬念", captured["prompt"])
+
+    def test_v1_generate_script_raises_clear_error_for_google_empty_content(self):
+        """
+        Google/Gemini 的 SDK 在内容过滤、安全拦截或空响应场景下，可能
+        返回空/缺失的文本片段。服务层需要显式抛出可诊断错误，而不是
+        继续把 None 或空字符串当作有效脚本。
+        """
+        fake_response = types.SimpleNamespace(
+            candidates=[types.SimpleNamespace(content=types.SimpleNamespace(parts=[]))]
+        )
+
+        class FakeModel:
+            def generate_content(self, prompt):
+                return fake_response
+
+        fake_genai = types.SimpleNamespace(
+            configure=lambda **kwargs: None,
+            GenerativeModel=lambda **kwargs: FakeModel(),
+        )
+
+        with patch.dict(sys.modules, {"google.generativeai": fake_genai}):
+            with self.assertRaisesRegex(ValueError, "returned invalid response content"):
+                v1_llm_service._generate_response(
+                    prompt="test",
+                    provider_name="gemini",
+                    model_name="gemini-2.5-flash",
+                    api_key="mock-key",
+                    base_url="",
+                )
 
     def test_generate_terms_can_request_script_ordered_keywords(self):
         """
