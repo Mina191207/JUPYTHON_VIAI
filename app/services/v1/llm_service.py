@@ -157,7 +157,7 @@ def _generate_response(
     model_name: str = None,
     api_key: str = None,
     base_url: str = None,
-) -> str:
+) -> dict:
     print("=" * 50)
     print("Provider:", provider_name)
     print("Model:", model_name)
@@ -841,7 +841,6 @@ def generate_script(
 
     final_script = ""
     last_error = None
-    last_error = None
 
     for i in range(_max_retries):
         try:
@@ -894,14 +893,6 @@ def generate_script(
 
 
 def _strip_code_fence(text: str) -> str:
-    """Strip a surrounding markdown code fence from an LLM response.
-
-    Non-OpenAI providers (Claude, Gemini, …) frequently wrap JSON output in a
-    ```json … ``` fence even when asked to return raw JSON. Removing it lets the
-    first json.loads() succeed instead of falling through to the regex recovery
-    path (and spuriously logging a warning). Mirrors the DOTALL handling already
-    used in _parse_social_metadata().
-    """
     t = (text or "").strip()
     if t.startswith("```"):
         t = re.sub(r"^```[a-zA-Z0-9]*\s*", "", t)
@@ -910,11 +901,15 @@ def _strip_code_fence(text: str) -> str:
 
 
 def generate_terms(
+    provider_name: str,
+    model_name: str,
+    api_key: str,
+    base_url: str,
     video_subject: str,
     video_script: str,
     amount: int = 5,
     match_script_order: bool = False,
-) -> List[str]:
+) -> dict:
     if match_script_order:
         goal = (
             f"Generate {amount} chronological stock-video search terms that follow "
@@ -979,13 +974,23 @@ Please note that you must use English for generating video search terms; Chinese
 
     search_terms = []
     response = ""
+    last_error = None
+
     for i in range(_max_retries):
         try:
-            response = _generate_response(prompt)
-            if "Error: " in response:
-                logger.error(f"failed to generate video script: {response}")
-                return response
-            search_terms = json.loads(_strip_code_fence(response))
+            response = _generate_response(
+                prompt=prompt,
+                provider_name=provider_name,
+                model_name=model_name,
+                api_key=api_key,
+                base_url=base_url,
+            )
+            text = response["text"]
+            if "Error: " in text:
+                raise Exception(text)
+            search_terms = json.loads(
+                _strip_code_fence(text)
+            )
             if not isinstance(search_terms, list) or not all(
                 isinstance(term, str) for term in search_terms
             ):
@@ -993,25 +998,38 @@ Please note that you must use English for generating video search terms; Chinese
                 continue
 
         except Exception as e:
+            last_error = e
             logger.warning(f"failed to generate video terms: {str(e)}")
-            if response:
-                match = re.search(r"\[.*]", response, re.DOTALL)
+            if response and response.get("text"):
+                match = re.search(
+                    r"\[.*]",
+                    response["text"],
+                    re.DOTALL,
+                )
                 if match:
                     try:
                         search_terms = json.loads(match.group())
                     except Exception as e:
-                        # 这里保留重试流程，但必须记录 LLM 返回的非标准 JSON，
-                        # 否则后续排查搜索词为空时无法定位
-                        # 是模型格式问题还是解析逻辑问题。
                         logger.warning(f"failed to generate video terms: {str(e)}")
 
-        if search_terms and len(search_terms) > 0:
+        if search_terms:
             break
-        if i < _max_retries:
+        if i < _max_retries - 1:
             logger.warning(f"failed to generate video terms, trying again... {i + 1}")
 
-    logger.success(f"completed: \n{search_terms}")
-    return search_terms
+    if search_terms:
+        logger.success(f"completed:\n{search_terms}")
+
+        return {
+            "terms": search_terms,
+            "prompt_tokens": response.get("prompt_tokens", 0),
+            "completion_tokens": response.get("completion_tokens", 0),
+            "total_tokens": response.get("total_tokens", 0),
+        }
+    if last_error:
+        raise last_error
+
+    raise Exception("Failed to generate video terms")
 
 
 # =============================================================================
@@ -1187,8 +1205,6 @@ def _parse_social_metadata(response: str, platform: str) -> dict:
     try:
         data = json.loads(_strip_code_fence(response))
     except Exception:
-        # 部分模型会在 JSON 外层包一段说明文字或 markdown fence。
-        # API 调用方只需要稳定结构，所以这里尝试提取第一个 JSON object。
         match = re.search(r"\{.*\}", response or "", re.DOTALL)
         if match:
             data = json.loads(match.group())
@@ -1228,68 +1244,86 @@ def _fallback_social_metadata(
 
 
 def generate_social_metadata(
+    provider_name: str,
+    model_name: str,
+    api_key: str,
+    base_url: str,
     video_subject: str,
-    video_script: str = "",
-    language: str = DEFAULT_SOCIAL_LANGUAGE,
-    platform: str = DEFAULT_SOCIAL_PLATFORM,
-) -> dict:
-    """
-    生成短视频发布文案元数据。
-
-    返回结构固定为 `{"title": str, "caption": str, "hashtags": List[str]}`。
-    如果 LLM 不可用或返回格式异常，会降级为通用启发式结果，保证 API
-    调用方始终拿到可展示、可发布前编辑的数据结构。
-    """
+    video_script: str,
+    platform: str = "youtube",
+    language: str = "",
+):
     platform = _resolve_social_platform(platform)
     language = _normalize_social_language(language)
+
+    last_error = None
+    response = None
+
+
     video_subject = _limit_social_text(
-        video_subject, MAX_SOCIAL_SUBJECT_LENGTH, "video_subject"
+        video_subject,
+        MAX_SOCIAL_SUBJECT_LENGTH,
+        "video_subject",
     )
+
     video_script = _limit_social_text(
-        video_script, MAX_SOCIAL_SCRIPT_LENGTH, "video_script"
+        video_script,
+        MAX_SOCIAL_SCRIPT_LENGTH,
+        "video_script",
     )
+
     prompt = build_social_metadata_prompt(
         video_subject=video_subject,
         video_script=video_script,
         language=language,
         platform=platform,
     )
+
     logger.info(
         f"generating social metadata: platform={platform}, language={language}"
     )
 
-    response = ""
     for i in range(_max_retries):
         try:
-            response = _generate_response(prompt)
-            if isinstance(response, str) and "Error: " in response:
-                logger.error(f"failed to generate social metadata: {response}")
-                break
-            metadata = _parse_social_metadata(response, platform)
-            logger.success(f"completed: \n{metadata}")
-            return metadata
+
+            response = _generate_response(
+                prompt=prompt,
+                provider_name=provider_name,
+                model_name=model_name,
+                api_key=api_key,
+                base_url=base_url,
+            )
+            print(response)
+
+            text = response["text"]
+
+            if "Error:" in text:
+                raise Exception(text)
+
+            metadata = _parse_social_metadata(
+                text,
+                platform,
+            )
+
+            logger.success(f"completed:\n{metadata}")
+
+            return {
+                "metadata": metadata,
+                "prompt_tokens": response.get("prompt_tokens", 0),
+                "completion_tokens": response.get("completion_tokens", 0),
+                "total_tokens": response.get("total_tokens", 0),
+            }
+
         except Exception as e:
-            logger.warning(f"failed to parse social metadata: {str(e)}")
+            last_error = e
+            logger.warning(f"failed to parse social metadata: {e}")
 
         if i < _max_retries - 1:
             logger.warning(
                 f"failed to generate social metadata, trying again... {i + 1}"
             )
 
-    logger.warning("falling back to heuristic social metadata")
-    return _fallback_social_metadata(video_subject, video_script, platform)
+    if last_error:
+        raise last_error
 
-
-if __name__ == "__main__":
-    video_subject = "生命的意义是什么"
-    script = generate_script(
-        video_subject=video_subject, language="zh-CN", paragraph_number=1
-    )
-    print("######################")
-    print(script)
-    search_terms = generate_terms(
-        video_subject=video_subject, video_script=script, amount=5
-    )
-    print("######################")
-    print(search_terms)
-    
+    raise Exception("Failed to generate social metadata")

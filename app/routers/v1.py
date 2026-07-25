@@ -9,6 +9,7 @@ from app.controllers.v1.plan_controller import router as plan_router
 from app.controllers.v1.vnpay_controller import router as vnpay_router
 from app.controllers.v1.ai_provider_controller import router as ai_provider_router
 from app.controllers.v1.ai_controller import router as ai_router
+from app.controllers.v1.ai_estimate_controller import router as estimate_router
 
 router = APIRouter()
 
@@ -21,3 +22,4 @@ router.include_router(plan_router)
 router.include_router(vnpay_router)
 router.include_router(ai_provider_router)
 router.include_router(ai_router)
+router.include_router(estimate_router)
