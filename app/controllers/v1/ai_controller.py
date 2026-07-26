@@ -7,12 +7,15 @@ from app.services.v1.auth_service import get_current_user
 from app.db.models.user import User
 
 from app.schemas.script_schema import GenerateScriptRequest
-from app.schemas.ai import GenerateSocialMetadataRequest, GenerateSocialMetadataResponse
 
 from app.schemas.ai import (
     EstimateRequest,
     GenerateTermsRequest,
     GenerateTermsResponse,
+    GenerateSocialMetadataRequest,
+    GenerateSocialMetadataResponse,
+    GenerateVideoRequest,
+    GenerateVideoResponse,
 )
 
 router = APIRouter(
@@ -67,4 +70,21 @@ def generate_social_metadata(
         user_id=current_user.id,
         video_subject=request.video_subject,
         video_script=request.video_script,
+    )
+
+@router.post(
+    "/generate-video",
+    response_model=GenerateVideoResponse,
+)
+def generate_video(
+    request: GenerateVideoRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return ai_service.generate_video(
+        db=db,
+        user_id=current_user.id,
+        video_subject=request.video_subject,
+        language=request.language,
+        paragraph_number=request.paragraph_number,
     )

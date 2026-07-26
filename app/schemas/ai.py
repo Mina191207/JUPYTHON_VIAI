@@ -6,6 +6,11 @@ class EstimateRequest(BaseModel):
     language: str = ""
     paragraph_number: int = 1
 
+class GenerateScriptResponse(BaseModel):
+    script: str
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
 
 class GenerateTermsRequest(BaseModel):
     video_subject: str
@@ -37,3 +42,23 @@ class GenerateSocialMetadataResponse(BaseModel):
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
+
+class GenerateVideoRequest(BaseModel):
+    video_subject: str
+    language: str = ""
+    paragraph_number: int = 1
+
+class GenerateAudioRequest(BaseModel):
+    script: str
+    voice_name: str
+    voice_rate: float = 1.0
+
+class GenerateAudioResponse(BaseModel):
+    audio_path: str
+    
+class GenerateVideoResponse(BaseModel):
+    script: GenerateScriptResponse
+    terms: GenerateTermsResponse
+    metadata: GenerateSocialMetadataResponse
+    audio: GenerateAudioResponse
+
