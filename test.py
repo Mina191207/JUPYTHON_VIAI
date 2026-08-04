@@ -1,14 +1,13 @@
-from app.services.v1.ai_provider_service import ai_provider_service
-from app.services.v1.vnpay_service import create_payment_url
-from app.db.database import SessionLocal
-from app.db.models.payment import Payment
+import asyncio
+import edge_tts
 
-db = SessionLocal()
-providers = ai_provider_service.get_all_active(db)
+TEXT = "Xin chào"
 
-for p in providers:
-    print(
-        p.provider,
-        p.priority,
-        p.api_key[:10],
-    )
+VOICE = "vi-VN-HoaiMyNeural"
+
+async def main():
+    communicate = edge_tts.Communicate(TEXT, VOICE)
+    await communicate.save("test.mp3")
+    print("Done")
+
+asyncio.run(main())

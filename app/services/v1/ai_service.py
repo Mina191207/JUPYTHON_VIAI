@@ -9,6 +9,8 @@ from app.services.v1.subscription_service import subscription_service
 from app.services.v1.usage_service import usage_service
 import app.services.v1.llm_service as llm_service
 
+from app.services.v1.material_service import download_videos
+
 from app.services.v1.voice_service import tts
 
 import os
@@ -450,9 +452,17 @@ class AIService:
             voice_volume=1.0,
         )
 
+        if sub_maker is None:
+            raise Exception("Generate audio failed")
+
+        subtitle_path = self._save_subtitle(sub_maker)
+        print(type(sub_maker))
+        print(dir(sub_maker))
+        subtitle_path = self._save_subtitle(sub_maker)
+
         return {
             "audio_path": voice_file,
-            "subtitle": sub_maker,
+            "subtitle_path": subtitle_path,
         }
 
     def generate_audio(#xu ly credit
@@ -508,5 +518,32 @@ class AIService:
                 total_tokens=0,
             )
 
-        return audio
+        return {
+            "audio_path": audio["audio_path"],
+            "subtitle_path": audio["subtitle_path"],
+        }
+
+    def _save_subtitle(
+        self,
+        sub_maker,
+    ):
+        os.makedirs("storage/subtitle", exist_ok=True)
+
+        subtitle_path = os.path.join(
+            "storage",
+            "subtitle",
+            f"{uuid.uuid4()}.srt",
+        )
+
+        with open(
+            subtitle_path,
+            "w",
+            encoding="utf-8",
+        ) as f:
+            f.write(sub_maker.get_srt())
+
+        return subtitle_path
+
+
+
 ai_service = AIService()

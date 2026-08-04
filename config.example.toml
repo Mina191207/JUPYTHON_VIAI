@@ -8,7 +8,7 @@ hide_config = false
 # 网络异常、服务端限流或 voice 与文本语言不匹配时，edge_tts 可能长期卡住。
 # 默认 30 秒可避免 WebUI 任务无反馈；慢网络或代理环境可适当调大。
 # 设置为 0 表示禁用超时。
-edge_tts_timeout = 30
+edge_tts_timeout = 120
 
 # 是否校验外部 API 和素材下载的 TLS 证书。
 # 默认必须开启，避免 Pexels/Pixabay API key 和下载素材被中间人攻击篡改。

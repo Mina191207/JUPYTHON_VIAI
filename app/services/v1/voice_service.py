@@ -26,7 +26,7 @@ from openai import OpenAI
 from app.config import config
 from app.utils import utils
 
-_DEFAULT_EDGE_TTS_TIMEOUT_SECONDS = 30.0
+_DEFAULT_EDGE_TTS_TIMEOUT_SECONDS = 120.0
 _MIMO_DEFAULT_BASE_URL = "https://api.xiaomimimo.com/v1"
 _MIMO_DEFAULT_TTS_MODEL = "mimo-v2.5-tts"
 NO_VOICE_NAME = "no-voice"
