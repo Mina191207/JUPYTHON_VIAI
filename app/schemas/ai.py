@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 
-
 class EstimateRequest(BaseModel):
     video_subject: str
     language: str = ""
@@ -55,10 +54,15 @@ class GenerateAudioRequest(BaseModel):
 
 class GenerateAudioResponse(BaseModel):
     audio_path: str
-    
+
+class GenerateVideoFileResponse(BaseModel):
+    video_path: str
+
 class GenerateVideoResponse(BaseModel):
     script: GenerateScriptResponse
     terms: GenerateTermsResponse
     metadata: GenerateSocialMetadataResponse
     audio: GenerateAudioResponse
+    materials: list[str]
+    video: GenerateVideoFileResponse
 

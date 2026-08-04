@@ -8,10 +8,10 @@ from app.services.v1.credit_service import credit_service
 from app.services.v1.subscription_service import subscription_service
 from app.services.v1.usage_service import usage_service
 import app.services.v1.llm_service as llm_service
-
-from app.services.v1.material_service import download_videos
-
+from app.services.v1 import material_service
 from app.services.v1.voice_service import tts
+from app.services.v1 import voice_service
+from app.services.v1 import video_service
 
 import os
 import uuid
@@ -392,6 +392,20 @@ class AIService:
             voice_name="vi-VN-HoaiMyNeural",
             charge_credit=False,
         )
+        task_id = str(uuid.uuid4())
+        print("Downloading materials...")
+        materials = material_service.download_videos(
+            task_id=task_id,
+            search_terms=terms["terms"],
+            source="pexels",
+            audio_duration=audio["duration"],
+        )
+        video = video_service.create_video(
+            task_id=task_id,
+            video_paths=materials,
+            audio_path=audio["audio_path"],
+            subtitle_path=audio["subtitle_path"],
+        )
         prompt_tokens = (
             script["prompt_tokens"]
             + terms["prompt_tokens"]
@@ -426,14 +440,14 @@ class AIService:
             "terms": terms,
             "metadata": metadata,
             "audio": audio,
+            "materials": materials,
+            "video": {
+                "video_path": video,
+            },
         }
 
-    def _generate_audio(#tao audio
-        self,
-        script: str,
-        voice_name: str,
-        voice_rate: float = 1.0,
-    ):
+    def _generate_audio(self, script: str, voice_name: str, voice_rate: float = 1.0):
+
         os.makedirs("storage/audio", exist_ok=True)
 
         filename = f"{uuid.uuid4()}.mp3"
@@ -460,12 +474,15 @@ class AIService:
         print(dir(sub_maker))
         subtitle_path = self._save_subtitle(sub_maker)
 
+        duration = voice_service.get_audio_duration(voice_file)
         return {
             "audio_path": voice_file,
             "subtitle_path": subtitle_path,
+            "duration": duration,
         }
 
-    def generate_audio(#xu ly credit
+
+    def generate_audio(
         self,
         db: Session,
         user_id: int,
@@ -518,10 +535,7 @@ class AIService:
                 total_tokens=0,
             )
 
-        return {
-            "audio_path": audio["audio_path"],
-            "subtitle_path": audio["subtitle_path"],
-        }
+        return audio
 
     def _save_subtitle(
         self,
