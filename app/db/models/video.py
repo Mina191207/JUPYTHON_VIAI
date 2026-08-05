@@ -1,29 +1,36 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
 
 from app.db.database import Base
+
 
 class Video(Base):
     __tablename__ = "videos"
 
     id = Column(Integer, primary_key=True, index=True)
 
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+    )
 
-    task_id = Column(String(255), nullable=False)
+    title = Column(String)
 
-    title = Column(String(255), nullable=False)
+    subject = Column(String)
 
-    resolution = Column(String(50), nullable=True)
+    script = Column(String)
 
-    credit_used = Column(Integer, default=0, nullable=False)
+    video_path = Column(String)
 
-    status = Column(String(50), nullable=False)
+    thumbnail_path = Column(String)
+
+    duration = Column(Integer, default=0)
+
+    status = Column(String, default="completed")
 
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    file_path = Column(String(255), nullable=True)
-
-    duration = Column(Integer, nullable=True)
-
+    user = relationship("User")

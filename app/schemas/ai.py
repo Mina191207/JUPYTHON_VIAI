@@ -65,4 +65,5 @@ class GenerateVideoResponse(BaseModel):
     audio: GenerateAudioResponse
     materials: list[str]
     video: GenerateVideoFileResponse
+    video_path: str
 

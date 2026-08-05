@@ -1,7 +1,11 @@
+from app.models.schema import VideoAspect
+from app.schemas.schema import VideoParams
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.models.user import User
+from app.services import video_record_service
+from app.utils import utils
 
 from app.services.v1.ai_provider_service import ai_provider_service
 from app.services.v1.credit_service import credit_service
@@ -400,11 +404,47 @@ class AIService:
             source="pexels",
             audio_duration=audio["duration"],
         )
-        video = video_service.create_video(
-            task_id=task_id,
+
+        combined_video_path = os.path.join(
+            utils.task_dir(task_id),
+            "combined.mp4",
+        )
+        video_service.combine_videos(
+            combined_video_path=combined_video_path,
             video_paths=materials,
+            audio_file=audio["audio_path"],
+            video_aspect=VideoAspect.portrait,
+            max_clip_duration=5,
+        )
+
+        params = VideoParams(
+            video_subject=video_subject,
+            video_script=script["script"],
+            video_terms=terms["terms"],
+            video_aspect=VideoAspect.portrait,
+            voice_name="vi-VN-HoaiMyNeural",
+            subtitle_enabled=True,
+        )
+
+        final_video_path = os.path.join(
+            utils.task_dir(task_id),
+            "final.mp4",
+        )
+        video_service.generate_video(
+            video_path=combined_video_path,
             audio_path=audio["audio_path"],
             subtitle_path=audio["subtitle_path"],
+            output_file=final_video_path,
+            params=params,
+        )
+        video_record_service.create(
+            db=db,
+            user_id=user.id,
+            task_id=task_id,
+            title=metadata["metadata"]["title"],
+            file_path=final_video_path,
+            credit_used=required_credit,
+            duration=int(audio["duration"])
         )
         prompt_tokens = (
             script["prompt_tokens"]
@@ -441,9 +481,7 @@ class AIService:
             "metadata": metadata,
             "audio": audio,
             "materials": materials,
-            "video": {
-                "video_path": video,
-            },
+            "video_path": final_video_path,
         }
 
     def _generate_audio(self, script: str, voice_name: str, voice_rate: float = 1.0):
