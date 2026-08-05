@@ -11,25 +11,27 @@ class Video(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    user_id = Column(
-        Integer,
-        ForeignKey("users.id"),
-        nullable=False,
-    )
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
-    title = Column(String)
+    task_id = Column(String(255), unique=True, nullable=False)
 
-    subject = Column(String)
+    title = Column(String(255))
+
+    subject = Column(String(255))
 
     script = Column(String)
 
-    video_path = Column(String)
+    file_path = Column(String(500))
 
-    thumbnail_path = Column(String)
+    thumbnail_path = Column(String(500))
 
     duration = Column(Integer, default=0)
 
-    status = Column(String, default="completed")
+    resolution = Column(String(50))
+
+    credit_used = Column(Integer, default=0)
+
+    status = Column(String(50), default="completed")
 
     created_at = Column(DateTime, default=datetime.utcnow)
 

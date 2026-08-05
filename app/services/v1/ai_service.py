@@ -4,9 +4,9 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.models.user import User
-from app.services import video_record_service
 from app.utils import utils
 
+from app.services.v1.video_record_service import video_record_service
 from app.services.v1.ai_provider_service import ai_provider_service
 from app.services.v1.credit_service import credit_service
 from app.services.v1.subscription_service import subscription_service

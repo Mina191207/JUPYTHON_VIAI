@@ -28,7 +28,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from app.config import config
 from app.models import const
-from app.models.schema import (
+from app.schemas.schema import (
     MaterialInfo,
     VideoAspect,
     VideoConcatMode,
