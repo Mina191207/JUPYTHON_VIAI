@@ -481,6 +481,7 @@ class AIService:
             "metadata": metadata,
             "audio": audio,
             "materials": materials,
+            "video": {"video_path": final_video_path},
             "video_path": final_video_path,
         }
 
