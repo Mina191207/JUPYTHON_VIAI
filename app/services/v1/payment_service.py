@@ -156,8 +156,6 @@ class PaymentService:
 
             payment.status = PaymentStatus.SUCCESS.value
 
-            payment.status = PaymentStatus.SUCCESS.value
-
             # Luôn cộng credit
             credit_service.add_credit(
                 db=db,

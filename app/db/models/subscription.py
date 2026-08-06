@@ -5,7 +5,6 @@ from sqlalchemy.orm import relationship
 
 from app.db.database import Base
 
-
 class Subscription(Base):
     __tablename__ = "subscriptions"
 
@@ -33,6 +32,11 @@ class Subscription(Base):
         DateTime,
         default=datetime.utcnow,
         nullable=False,
+    )
+
+    renewal_date = Column(
+        DateTime,
+        nullable=True,
     )
 
     end_date = Column(
