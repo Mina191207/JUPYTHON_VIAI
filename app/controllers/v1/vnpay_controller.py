@@ -12,6 +12,7 @@ from app.constants.payment import PaymentType
 from app.services.v1.credit_service import credit_service
 from app.services.v1.payment_service import payment_service
 # from app.services.v1.subscription_service import subscription_service
+from fastapi.responses import RedirectResponse
 
 router = APIRouter(prefix="", tags=["Payment"])
 
@@ -20,6 +21,7 @@ def vnpay_return(
     request: Request,
     db: Session = Depends(get_db),
 ):
+    print("===== VNPAY RETURN =====")
     params = dict(request.query_params)
 
     print("=" * 50)
@@ -83,7 +85,7 @@ def vnpay_return(
         payment_id=payment.id,
         user_id=payment.user_id,
     )
-    return {
-        "message": "Payment success",
-        "payment_id": payment.id,
-    }
+    return RedirectResponse(
+        url=f"http://localhost:3000/billing",
+        status_code=302,
+    )

@@ -183,5 +183,20 @@ class PaymentService:
             db.rollback()
             raise
 
+    def get_payments_by_user(
+        self,
+        db: Session,
+        user_id: int,
+    ):
+
+        payments = (
+            db.query(Payment)
+            .filter(Payment.user_id == user_id, Payment.status == PaymentStatus.SUCCESS.value)
+            .order_by(Payment.created_at.desc())
+            .all()
+        )
+
+        return payments
+
 
 payment_service = PaymentService()

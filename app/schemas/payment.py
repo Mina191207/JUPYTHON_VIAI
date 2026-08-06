@@ -39,3 +39,10 @@ class PaymentResponse(BaseModel):
 
 class PaymentSuccessResponse(BaseModel):
     message: str
+
+class PaymentHistoryResponse(BaseModel):
+    id: int
+    payment_type: str
+    amount: int
+    credit_added: int
+    created_at: datetime
