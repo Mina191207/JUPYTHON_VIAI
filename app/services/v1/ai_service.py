@@ -611,10 +611,7 @@ class AIService:
         if sub_maker is None:
             raise Exception("Generate audio failed")
 
-        subtitle_path = self._save_subtitle(sub_maker)
-        print(type(sub_maker))
-        print(dir(sub_maker))
-        subtitle_path = self._save_subtitle(sub_maker)
+        subtitle_path = self._save_subtitle(sub_maker, script)
 
         duration = voice_service.get_audio_duration(voice_file)
         return {
@@ -682,6 +679,7 @@ class AIService:
     def _save_subtitle(
         self,
         sub_maker,
+        script: str,
     ):
         os.makedirs("storage/subtitle", exist_ok=True)
 
@@ -691,12 +689,30 @@ class AIService:
             f"{uuid.uuid4()}.srt",
         )
 
-        with open(
-            subtitle_path,
-            "w",
-            encoding="utf-8",
-        ) as f:
-            f.write(sub_maker.get_srt())
+        # Prefer the existing aggregation logic in voice_service.create_subtitle(),
+        # which merges Edge TTS/WordBoundary cues into sentence-level subtitle items.
+        try:
+            voice_service.create_subtitle(
+                sub_maker=sub_maker,
+                text=script,
+                subtitle_file=subtitle_path,
+            )
+            if os.path.exists(subtitle_path) and os.path.getsize(subtitle_path) > 0:
+                return subtitle_path
+        except Exception as e:
+            logger.warning(
+                f"failed to create aggregated subtitle, fallback to raw sub_maker.get_srt(): {e}"
+            )
+
+        try:
+            with open(
+                subtitle_path,
+                "w",
+                encoding="utf-8",
+            ) as f:
+                f.write(sub_maker.get_srt())
+        except Exception as e:
+            logger.error(f"failed to write raw subtitle fallback: {e}")
 
         return subtitle_path
 
