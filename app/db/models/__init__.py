@@ -8,3 +8,4 @@ from .usage_log import UsageLog
 from .api_key import ApiKey
 from .ai_provider import AIProvider
 from .video import Video
+from .video_draft import VideoDraft

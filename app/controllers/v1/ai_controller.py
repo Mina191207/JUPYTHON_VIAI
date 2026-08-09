@@ -16,6 +16,7 @@ from app.schemas.ai import (
     GenerateSocialMetadataResponse,
     GenerateVideoRequest,
     GenerateVideoResponse,
+    RegenerateScriptRequest,
 )
 
 router = APIRouter(
@@ -29,13 +30,25 @@ def generate_script(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-
     return ai_service.generate_script(
         db=db,
         user_id=user.id,
         video_subject=request.video_subject,
         language=request.language,
         paragraph_number=request.paragraph_number,
+        charge_credit=False,
+    )
+
+@router.post("/regenerate-script")
+def regenerate_script(
+    request: RegenerateScriptRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return ai_service.regenerate_script(
+        db=db,
+        user_id=current_user.id,
+        draft_id=request.draft_id,
     )
 
 @router.post(
@@ -84,8 +97,5 @@ def generate_video(
     return ai_service.generate_video(
         db=db,
         user_id=current_user.id,
-        video_subject=request.video_subject,
-        language=request.language,
-        paragraph_number=request.paragraph_number,
-        
+        draft_id=request.draft_id,
     )

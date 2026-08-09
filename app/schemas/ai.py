@@ -6,10 +6,21 @@ class EstimateRequest(BaseModel):
     paragraph_number: int = 1
 
 class GenerateScriptResponse(BaseModel):
+    draft_id: int
     script: str
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
+    regenerate_count: int
+    regenerate_limit: int
+
+class GenerateScriptRequest(BaseModel):
+    video_subject: str
+    language: str = ""
+    paragraph_number: int = 1
+
+class RegenerateScriptRequest(BaseModel):
+    draft_id: int
 
 class GenerateTermsRequest(BaseModel):
     video_subject: str
@@ -42,10 +53,6 @@ class GenerateSocialMetadataResponse(BaseModel):
     completion_tokens: int
     total_tokens: int
 
-class GenerateVideoRequest(BaseModel):
-    video_subject: str
-    language: str = ""
-    paragraph_number: int = 1
 
 class GenerateAudioRequest(BaseModel):
     script: str
@@ -57,6 +64,9 @@ class GenerateAudioResponse(BaseModel):
 
 class GenerateVideoFileResponse(BaseModel):
     video_path: str
+
+class GenerateVideoRequest(BaseModel):
+    draft_id: int
 
 class GenerateVideoResponse(BaseModel):
     script: GenerateScriptResponse

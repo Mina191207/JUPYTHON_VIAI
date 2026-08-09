@@ -13,6 +13,7 @@ from app.services.v1.subscription_service import subscription_service
 from app.services.v1.usage_service import usage_service
 import app.services.v1.llm_service as llm_service
 from app.services.v1 import material_service
+from app.services.v1.video_draft_service import video_draft_service
 from app.services.v1.voice_service import tts
 from app.services.v1 import voice_service
 from app.services.v1 import video_service
@@ -85,6 +86,17 @@ class AIService:
                 reason=reason,
             )
 
+        # Nếu không có provider từ bước generate trước
+        # thì lấy provider đang active để ghi UsageLog
+        if provider is None:
+            provider = ai_provider_service.get_default_provider(db)
+
+        if provider is None:
+            raise HTTPException(
+                status_code=500,
+                detail="No active AI provider available",
+            )
+
         usage_service.create(
             db=db,
             user_id=user.id,
@@ -97,8 +109,8 @@ class AIService:
             cost=0,
             credit_used=required_credit if not subscription else 0,
         )
-        return transaction
 
+        return transaction
 
     def generate_script(
         self,
@@ -109,7 +121,6 @@ class AIService:
         paragraph_number: int,
         charge_credit: bool = True,
     ):
-
         required_credit = 10
 
         data = self._prepare_ai_request(
@@ -124,11 +135,10 @@ class AIService:
 
         script = None
         provider = None
+        result = None
 
         for p in providers:
-
             try:
-
                 result = llm_service.generate_script(
                     provider_name=p.provider,
                     model_name=p.model,
@@ -144,14 +154,15 @@ class AIService:
                 break
 
             except Exception as e:
-
                 print(f"{p.provider} failed:", e)
 
-        if provider is None:
+        if provider is None or result is None:
             raise HTTPException(
                 status_code=500,
                 detail="No AI provider available",
             )
+
+        # Chỉ trừ credit khi generate_script được gọi độc lập
         if charge_credit:
             self._finish_ai_request(
                 db=db,
@@ -165,12 +176,96 @@ class AIService:
                 total_tokens=result["total_tokens"],
             )
 
+        # Lưu script thành draft để FE cho khách xem trước
+        draft = video_draft_service.create(
+            db=db,
+            user_id=user_id,
+            video_subject=video_subject,
+            script=script,
+        )
+
         return {
             "provider": provider,
+            "draft_id": draft.id,
             "script": script,
             "prompt_tokens": result["prompt_tokens"],
             "completion_tokens": result["completion_tokens"],
             "total_tokens": result["total_tokens"],
+            "regenerate_count": draft.regenerate_count,
+            "regenerate_limit": video_draft_service.MAX_REGENERATE,
+        }
+    
+    def regenerate_script(
+        self,
+        db: Session,
+        user_id: int,
+        draft_id: int,
+    ):
+        # 1. Lấy draft và kiểm tra draft thuộc về user
+        draft = video_draft_service.get_by_id(
+            db=db,
+            draft_id=draft_id,
+            user_id=user_id,
+        )
+
+        # 2. Kiểm tra còn lượt regenerate
+        video_draft_service.check_can_regenerate(draft)
+
+        # 3. Lấy provider AI
+        providers = ai_provider_service.get_all_active(db)
+
+        if not providers:
+            raise HTTPException(
+                status_code=500,
+                detail="No AI provider available",
+            )
+
+        provider = None
+        result = None
+
+        # 4. Gọi AI tạo script mới
+        for p in providers:
+            try:
+                result = llm_service.generate_script(
+                    provider_name=p.provider,
+                    model_name=p.model,
+                    api_key=p.api_key,
+                    base_url=p.base_url,
+                    video_subject=draft.video_subject,
+                    language="",
+                    paragraph_number=1,
+                )
+
+                provider = p
+                break
+
+            except Exception as e:
+                print(f"{p.provider} failed:", e)
+
+        if provider is None or result is None:
+            raise HTTPException(
+                status_code=500,
+                detail="No AI provider available",
+            )
+
+        # 5. Lưu script mới + tăng regenerate_count
+        draft = video_draft_service.regenerate(
+            db=db,
+            draft_id=draft_id,
+            user_id=user_id,
+            script=result["script"],
+        )
+
+        # 6. Trả kết quả cho FE
+        return {
+            "provider": provider,
+            "draft_id": draft.id,
+            "script": draft.script,
+            "prompt_tokens": result["prompt_tokens"],
+            "completion_tokens": result["completion_tokens"],
+            "total_tokens": result["total_tokens"],
+            "regenerate_count": draft.regenerate_count,
+            "regenerate_limit": video_draft_service.MAX_REGENERATE,
         }
     
     def estimate(
@@ -347,11 +442,18 @@ class AIService:
         self,
         db: Session,
         user_id: int,
-        video_subject: str,
-        language: str = "",
-        paragraph_number: int = 1,
+        draft_id: int,
     ):
         required_credit = 20
+
+        draft = video_draft_service.get_by_id(
+            db=db,
+            draft_id=draft_id,
+            user_id=user_id,
+        )
+
+        video_subject = draft.video_subject
+        video_script = draft.script
 
         data = self._prepare_ai_request(
             db=db,
@@ -362,16 +464,17 @@ class AIService:
         user = data["user"]
         subscription = data["subscription"]
 
-        script = self.generate_script(
-            db=db,
-            user_id=user_id,
-            video_subject=video_subject,
-            language=language,
-            paragraph_number=paragraph_number,
-            charge_credit=False,
-        )
+        script = {
+            "draft_id": draft.id,
+            "script": video_script,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "regenerate_count": draft.regenerate_count,
+            "regenerate_limit": video_draft_service.MAX_REGENERATE,
+        }
 
-        provider = script["provider"]
+        provider = None
 
         terms = self.generate_terms(
             db=db,
