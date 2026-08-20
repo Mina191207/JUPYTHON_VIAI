@@ -1,3 +1,6 @@
+from typing import Optional
+
+from app.models.schema import VideoAspect
 from pydantic import BaseModel
 
 class EstimateRequest(BaseModel):
@@ -67,6 +70,14 @@ class GenerateVideoFileResponse(BaseModel):
 
 class GenerateVideoRequest(BaseModel):
     draft_id: int
+    voice_name: str = "vi-VN-HoaiMyNeural"
+    voice_rate: float = 1.0
+    voice_volume: float = 1.0
+    video_aspect: VideoAspect = VideoAspect.portrait
+    subtitle_enabled: bool = True
+    bgm_type: str = "random"
+    bgm_file: str = ""
+    bgm_volume: float = 0.2
 
 class GenerateVideoResponse(BaseModel):
     script: GenerateScriptResponse
@@ -76,4 +87,16 @@ class GenerateVideoResponse(BaseModel):
     materials: list[str]
     video: GenerateVideoFileResponse
     video_path: str
+
+
+class GenerateVideoTask(BaseModel):
+    """Trạng thái của một tác vụ tạo video đang chạy nền.
+
+    state: -1 = failed, 1 = complete, 4 = processing
+    """
+    task_id: str
+    state: int = 0
+    progress: int = 0
+    result: Optional[GenerateVideoResponse] = None
+    error: Optional[str] = None
 

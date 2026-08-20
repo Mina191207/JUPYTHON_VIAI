@@ -1,9 +1,11 @@
+from app.models import const
 from app.models.schema import VideoAspect
 from app.schemas.schema import VideoParams
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.models.user import User
+from app.services import state as sm
 from app.utils import utils
 
 from app.services.v1.video_record_service import video_record_service
@@ -443,152 +445,220 @@ class AIService:
         db: Session,
         user_id: int,
         draft_id: int,
+        task_id: str = "",
+        voice_name: str = "vi-VN-HoaiMyNeural",
+        voice_rate: float = 1.0,
+        voice_volume: float = 1.0,
+        video_aspect: VideoAspect = VideoAspect.portrait,
+        subtitle_enabled: bool = True,
+        bgm_type: str = "random",
+        bgm_file: str = "",
+        bgm_volume: float = 0.2,
     ):
-        required_credit = 20
+        def _update_progress(progress: int):
+            if not task_id:
+                return
+            sm.state.update_task(
+                task_id,
+                state=const.TASK_STATE_PROCESSING,
+                progress=progress,
+            )
 
-        draft = video_draft_service.get_by_id(
-            db=db,
-            draft_id=draft_id,
-            user_id=user_id,
-        )
+        if task_id:
+            sm.state.update_task(
+                task_id,
+                state=const.TASK_STATE_PROCESSING,
+                progress=0,
+            )
 
-        video_subject = draft.video_subject
-        video_script = draft.script
+        try:
+            required_credit = 20
 
-        data = self._prepare_ai_request(
-            db=db,
-            user_id=user_id,
-            required_credit=required_credit,
-        )
+            _update_progress(5)
 
-        user = data["user"]
-        subscription = data["subscription"]
+            draft = video_draft_service.get_by_id(
+                db=db,
+                draft_id=draft_id,
+                user_id=user_id,
+            )
 
-        script = {
-            "draft_id": draft.id,
-            "script": video_script,
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "total_tokens": 0,
-            "regenerate_count": draft.regenerate_count,
-            "regenerate_limit": video_draft_service.MAX_REGENERATE,
-        }
+            video_subject = draft.video_subject
+            video_script = draft.script
 
-        provider = None
+            data = self._prepare_ai_request(
+                db=db,
+                user_id=user_id,
+                required_credit=required_credit,
+            )
 
-        terms = self.generate_terms(
-            db=db,
-            user_id=user_id,
-            video_subject=video_subject,
-            video_script=script["script"],
-            amount=5,
-            charge_credit=False,
-        )
+            user = data["user"]
+            subscription = data["subscription"]
 
-        metadata = self.generate_social_metadata(
-            db=db,
-            user_id=user_id,
-            video_subject=video_subject,
-            video_script=script["script"],
-            charge_credit=False,
-        )
-        audio = self.generate_audio(
-            db=db,
-            user_id=user_id,
-            script=script["script"],
-            voice_name="vi-VN-HoaiMyNeural",
-            charge_credit=False,
-        )
-        task_id = str(uuid.uuid4())
-        print("Downloading materials...")
-        materials = material_service.download_videos(
-            task_id=task_id,
-            search_terms=terms["terms"],
-            source="pexels",
-            audio_duration=audio["duration"],
-        )
+            script = {
+                "draft_id": draft.id,
+                "script": video_script,
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "regenerate_count": draft.regenerate_count,
+                "regenerate_limit": video_draft_service.MAX_REGENERATE,
+            }
 
-        combined_video_path = os.path.join(
-            utils.task_dir(task_id),
-            "combined.mp4",
-        )
-        video_service.combine_videos(
-            combined_video_path=combined_video_path,
-            video_paths=materials,
-            audio_file=audio["audio_path"],
-            video_aspect=VideoAspect.portrait,
-            max_clip_duration=5,
-        )
+            provider = None
 
-        params = VideoParams(
-            video_subject=video_subject,
-            video_script=script["script"],
-            video_terms=terms["terms"],
-            video_aspect=VideoAspect.portrait,
-            voice_name="vi-VN-HoaiMyNeural",
-            subtitle_enabled=True,
-        )
+            _update_progress(15)
+            terms = self.generate_terms(
+                db=db,
+                user_id=user_id,
+                video_subject=video_subject,
+                video_script=script["script"],
+                amount=5,
+                charge_credit=False,
+            )
 
-        final_video_path = os.path.join(
-            utils.task_dir(task_id),
-            "final.mp4",
-        )
-        video_service.generate_video(
-            video_path=combined_video_path,
-            audio_path=audio["audio_path"],
-            subtitle_path=audio["subtitle_path"],
-            output_file=final_video_path,
-            params=params,
-        )
-        video_record_service.create(
-            db=db,
-            user_id=user.id,
-            task_id=task_id,
-            title=metadata["metadata"]["title"],
-            file_path=final_video_path,
-            credit_used=required_credit,
-            duration=int(audio["duration"])
-        )
-        prompt_tokens = (
-            script["prompt_tokens"]
-            + terms["prompt_tokens"]
-            + metadata["prompt_tokens"]
-        )
+            _update_progress(30)
+            metadata = self.generate_social_metadata(
+                db=db,
+                user_id=user_id,
+                video_subject=video_subject,
+                video_script=script["script"],
+                charge_credit=False,
+            )
 
-        completion_tokens = (
-            script["completion_tokens"]
-            + terms["completion_tokens"]
-            + metadata["completion_tokens"]
-        )
+            _update_progress(45)
+            audio = self.generate_audio(
+                db=db,
+                user_id=user_id,
+                script=script["script"],
+                voice_name=voice_name or "vi-VN-HoaiMyNeural",
+                voice_rate=voice_rate,
+                voice_volume=voice_volume,
+                charge_credit=False,
+            )
 
-        total_tokens = (
-            script["total_tokens"]
-            + terms["total_tokens"]
-            + metadata["total_tokens"]
-        )
-        self._finish_ai_request(
-            db=db,
-            user=user,
-            provider=provider,
-            subscription=subscription,
-            required_credit=required_credit,
-            reason="Generate video",
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=total_tokens,
-        )
+            _update_progress(60)
+            download_task_id = str(uuid.uuid4())
+            print("Downloading materials...")
+            materials = material_service.download_videos(
+                task_id=download_task_id,
+                search_terms=terms["terms"],
+                source="pexels",
+                audio_duration=audio["duration"],
+                video_aspect=video_aspect,
+            )
 
-        return {
-            "script": script,
-            "terms": terms,
-            "metadata": metadata,
-            "audio": audio,
-            "materials": materials,
-            "video": {"video_path": final_video_path},
-            "video_path": final_video_path,
-        }
+            _update_progress(75)
+            combined_video_path = os.path.join(
+                utils.task_dir(download_task_id),
+                "combined.mp4",
+            )
+            video_service.combine_videos(
+                combined_video_path=combined_video_path,
+                video_paths=materials,
+                audio_file=audio["audio_path"],
+                video_aspect=video_aspect,
+                max_clip_duration=5,
+            )
 
-    def _generate_audio(self, script: str, voice_name: str, voice_rate: float = 1.0):
+            params = VideoParams(
+                video_subject=video_subject,
+                video_script=script["script"],
+                video_terms=terms["terms"],
+                video_aspect=video_aspect,
+                voice_name=voice_name,
+                voice_volume=voice_volume,
+                voice_rate=voice_rate,
+                subtitle_enabled=subtitle_enabled,
+                bgm_type=bgm_type,
+                bgm_file=bgm_file,
+                bgm_volume=bgm_volume,
+            )
+
+            _update_progress(90)
+            final_video_path = os.path.join(
+                utils.task_dir(download_task_id),
+                "final.mp4",
+            )
+            video_service.generate_video(
+                video_path=combined_video_path,
+                audio_path=audio["audio_path"],
+                subtitle_path=audio["subtitle_path"] if subtitle_enabled else "",
+                output_file=final_video_path,
+                params=params,
+            )
+
+            video_record_service.create(
+                db=db,
+                user_id=user.id,
+                task_id=download_task_id,
+                title=metadata["metadata"]["title"],
+                file_path=final_video_path,
+                credit_used=required_credit,
+                duration=int(audio["duration"])
+            )
+            prompt_tokens = (
+                script["prompt_tokens"]
+                + terms["prompt_tokens"]
+                + metadata["prompt_tokens"]
+            )
+
+            completion_tokens = (
+                script["completion_tokens"]
+                + terms["completion_tokens"]
+                + metadata["completion_tokens"]
+            )
+
+            total_tokens = (
+                script["total_tokens"]
+                + terms["total_tokens"]
+                + metadata["total_tokens"]
+            )
+            self._finish_ai_request(
+                db=db,
+                user=user,
+                provider=provider,
+                subscription=subscription,
+                required_credit=required_credit,
+                reason="Generate video",
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens,
+            )
+
+            result = {
+                "script": script,
+                "terms": terms,
+                "metadata": metadata,
+                "audio": audio,
+                "materials": materials,
+                "video": {"video_path": final_video_path},
+                "video_path": final_video_path,
+            }
+
+            if task_id:
+                sm.state.update_task(
+                    task_id,
+                    state=const.TASK_STATE_COMPLETE,
+                    progress=100,
+                    result=result,
+                )
+            return result
+        except Exception as e:
+            if task_id:
+                sm.state.update_task(
+                    task_id,
+                    state=const.TASK_STATE_FAILED,
+                    error=str(e),
+                )
+            raise
+
+    def _generate_audio(
+        self,
+        script: str,
+        voice_name: str,
+        voice_rate: float = 1.0,
+        voice_volume: float = 1.0,
+    ):
 
         os.makedirs("storage/audio", exist_ok=True)
 
@@ -605,7 +675,7 @@ class AIService:
             voice_name=voice_name,
             voice_rate=voice_rate,
             voice_file=voice_file,
-            voice_volume=1.0,
+            voice_volume=voice_volume,
         )
 
         if sub_maker is None:
@@ -629,6 +699,7 @@ class AIService:
         voice_name: str,
         voice_rate: float = 1.0,
         charge_credit: bool = True,
+        voice_volume: float = 1.0,
     ):
         required_credit = 5
 
@@ -659,6 +730,7 @@ class AIService:
             script=script,
             voice_name=voice_name,
             voice_rate=voice_rate,
+            voice_volume=voice_volume,
         )
 
         if charge_credit:

@@ -617,53 +617,173 @@ def combine_videos(
         )
         
         try:
-            clip = _open_video_clip_quietly(subclipped_item.file_path).subclipped(
-                subclipped_item.start_time, subclipped_item.end_time
+            clip = _open_video_clip_quietly(
+                subclipped_item.file_path
+            ).subclipped(
+                subclipped_item.start_time,
+                subclipped_item.end_time,
             )
+
             clip_duration = clip.duration
-            # Not all videos are same size, so we need to resize them
+
             clip_w, clip_h = clip.size
-            if clip_w != video_width or clip_h != video_height:
-                clip_ratio = clip.w / clip.h
-                video_ratio = video_width / video_height
-                logger.debug(f"resizing clip, source: {clip_w}x{clip_h}, ratio: {clip_ratio:.2f}, target: {video_width}x{video_height}, ratio: {video_ratio:.2f}")
-                
-                if clip_ratio == video_ratio:
-                    clip = clip.resized(new_size=(video_width, video_height))
+
+            clip_ratio = clip_w / clip_h
+            target_ratio = video_width / video_height
+
+            logger.info(
+                f"Source: {clip_w}x{clip_h} "
+                f"(ratio={clip_ratio:.3f}) -> "
+                f"Target: {video_width}x{video_height} "
+                f"(ratio={target_ratio:.3f})"
+            )
+
+            # ============================================================
+            # 1. ĐÚNG TỶ LỆ -> chỉ resize
+            # ============================================================
+
+            if abs(clip_ratio - target_ratio) < 0.01:
+
+                logger.info("Aspect ratio matched -> resize")
+
+                clip = clip.resized(
+                    new_size=(video_width, video_height)
+                )
+
+            # ============================================================
+            # 2. SAI TỶ LỆ -> CROP, KHÔNG DÙNG NỀN ĐEN
+            # ============================================================
+
+            else:
+
+                logger.info(
+                    "Aspect ratio mismatch -> center crop"
+                )
+
+                if clip_ratio > target_ratio:
+                    # ------------------------------------------------
+                    # Source rộng hơn target
+                    #
+                    # Ví dụ:
+                    # source 16:9
+                    # target 9:16
+                    #
+                    # => crop chiều ngang
+                    # ------------------------------------------------
+
+                    new_width = int(clip_h * target_ratio)
+
+                    x1 = int((clip_w - new_width) / 2)
+                    x2 = x1 + new_width
+
+                    logger.info(
+                        f"Crop horizontal: "
+                        f"x={x1}:{x2}, "
+                        f"width={new_width}"
+                    )
+
+                    clip = clip.cropped(
+                        x1=x1,
+                        x2=x2,
+                        y1=0,
+                        y2=clip_h,
+                    )
+
                 else:
-                    if clip_ratio > video_ratio:
-                        scale_factor = video_width / clip_w
-                    else:
-                        scale_factor = video_height / clip_h
+                    # ------------------------------------------------
+                    # Source cao hơn target
+                    #
+                    # Ví dụ:
+                    # source 9:16
+                    # target 16:9
+                    #
+                    # => crop chiều dọc
+                    # ------------------------------------------------
 
-                    new_width = int(clip_w * scale_factor)
-                    new_height = int(clip_h * scale_factor)
+                    new_height = int(clip_w / target_ratio)
 
-                    background = ColorClip(size=(video_width, video_height), color=(0, 0, 0)).with_duration(clip_duration)
-                    clip_resized = clip.resized(new_size=(new_width, new_height)).with_position("center")
-                    clip = CompositeVideoClip([background, clip_resized])
-                    
-            shuffle_side = random.choice(["left", "right", "top", "bottom"])
-            if transition_value in (None, VideoTransitionMode.none.value):
-                clip = clip
+                    y1 = int((clip_h - new_height) / 2)
+                    y2 = y1 + new_height
+
+                    logger.info(
+                        f"Crop vertical: "
+                        f"y={y1}:{y2}, "
+                        f"height={new_height}"
+                    )
+
+                    clip = clip.cropped(
+                        x1=0,
+                        x2=clip_w,
+                        y1=y1,
+                        y2=y2,
+                    )
+
+                # ------------------------------------------------
+                # Sau crop -> resize về resolution chuẩn
+                # ------------------------------------------------
+
+                clip = clip.resized(
+                    new_size=(video_width, video_height)
+                )
+
+            # ============================================================
+            # TRANSITION
+            # ============================================================
+
+            shuffle_side = random.choice(
+                ["left", "right", "top", "bottom"]
+            )
+
+            if transition_value in (
+                None,
+                VideoTransitionMode.none.value,
+            ):
+                pass
+
             elif transition_value == VideoTransitionMode.fade_in.value:
-                clip = video_effects.fadein_transition(clip, 1)
+                clip = video_effects.fadein_transition(
+                    clip,
+                    1,
+                )
+
             elif transition_value == VideoTransitionMode.fade_out.value:
-                clip = video_effects.fadeout_transition(clip, 1)
+                clip = video_effects.fadeout_transition(
+                    clip,
+                    1,
+                )
+
             elif transition_value == VideoTransitionMode.slide_in.value:
-                clip = video_effects.slidein_transition(clip, 1, shuffle_side)
+                clip = video_effects.slidein_transition(
+                    clip,
+                    1,
+                    shuffle_side,
+                )
+
             elif transition_value == VideoTransitionMode.slide_out.value:
-                clip = video_effects.slideout_transition(clip, 1, shuffle_side)
+                clip = video_effects.slideout_transition(
+                    clip,
+                    1,
+                    shuffle_side,
+                )
+
             elif transition_value == VideoTransitionMode.shuffle.value:
+
                 transition_funcs = [
                     lambda c: video_effects.fadein_transition(c, 1),
                     lambda c: video_effects.fadeout_transition(c, 1),
-                    lambda c: video_effects.slidein_transition(c, 1, shuffle_side),
-                    lambda c: video_effects.slideout_transition(c, 1, shuffle_side),
+                    lambda c: video_effects.slidein_transition(
+                        c, 1, shuffle_side
+                    ),
+                    lambda c: video_effects.slideout_transition(
+                        c, 1, shuffle_side
+                    ),
                 ]
-                shuffle_transition = random.choice(transition_funcs)
-                clip = shuffle_transition(clip)
 
+                shuffle_transition = random.choice(
+                    transition_funcs
+                )
+
+                clip = shuffle_transition(clip)
             if clip.duration > max_clip_duration:
                 clip = clip.subclipped(0, max_clip_duration)
                 
@@ -902,6 +1022,10 @@ def generate_video(
 ):
     aspect = VideoAspect(params.video_aspect)
     video_width, video_height = aspect.to_resolution()
+    logger.info(
+        f"TARGET VIDEO RESOLUTION: {video_width}x{video_height}, "
+        f"ASPECT: {aspect}"
+    )
 
     logger.info(f"generating video: {video_width} x {video_height}")
     logger.info(f"  ① video: {video_path}")
